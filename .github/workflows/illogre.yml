@@ -1,0 +1,34 @@
+name: Deploy project to our server
+on:
+  push:
+    branches:
+      - 
+jobs:
+  FTP-Deploy-Softvence:
+    name: FTP-Deploy-Softvence
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: FTP-Deploy-Action
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.4
+        with:
+          server: ${{ secrets.FTP_SERVER }}
+          username: ${{ secrets.FTP_USER_NAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          server-dir: ./
+          exclude: |
+            **/.git*
+            **/.git*/**
+            **/node_modules/**
+            **/vendor/**
+            **/storage/**
+            .env
+            public/storage
+            .DS_Store
+            Thumbs.db
+            *.log
+          log-level: verbose
+         
