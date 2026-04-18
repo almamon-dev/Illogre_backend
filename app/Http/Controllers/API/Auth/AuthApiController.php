@@ -6,9 +6,13 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\API\Auth\RegisterApiRequest;
 use App\Http\Requests\API\Auth\VerifyRegistrationOtpRequest;
 use App\Http\Requests\Auth\ForgotPasswordRequest;
+use App\Http\Requests\Auth\LoginRequest;
 use App\Http\Requests\Auth\ResendOtpRequest;
+use App\Http\Requests\Auth\ResetPasswordRequest;
+use App\Http\Requests\Auth\VerifyOtpRequest;
 use App\Http\Resources\Auth\LoginResource;
 use App\Http\Resources\Auth\RegisterResource;
+use App\Models\Otp;
 use App\Models\PricingPlan;
 use App\Repositories\RegistrationRepository;
 use App\Services\RegistrationService;
@@ -19,7 +23,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
-use Stripe\StripeClient;
+use Illuminate\Support\Str;
 
 class AuthApiController extends Controller
 {
@@ -67,7 +71,7 @@ class AuthApiController extends Controller
         }
     }
 
-    public function loginApi(Request $request): JsonResponse
+    public function loginApi(LoginRequest $request): JsonResponse
     {
         try {
             $user = $this->registrationRepo->findUserByEmail($request->email);
@@ -95,7 +99,9 @@ class AuthApiController extends Controller
             $email = $request->email;
 
             if ($user = $this->registrationRepo->findUserByEmail($email)) {
-                return $this->sendResponse(new RegisterResource($user), 'Already registered.');
+                $token = $user->createToken('AuthToken')->plainTextToken;
+
+                return $this->sendResponse(new LoginResource($user), 'Already registered.', $token);
             }
 
             $cachedOtp = $this->registrationRepo->getCachedOtp($email);
@@ -119,11 +125,43 @@ class AuthApiController extends Controller
             }
 
             $user = $this->registrationService->finalizeFromCache($email);
+            $token = $user->createToken('AuthToken')->plainTextToken;
 
-            return $this->sendResponse(new RegisterResource($user), 'Registration successful!');
+            return $this->sendResponse(new LoginResource($user), 'Registration successful!', $token);
 
         } catch (Exception $e) {
             return $this->sendError('Verification failed', [], 500);
+        }
+    }
+
+    public function verifyEmailApi(VerifyOtpRequest $request): JsonResponse
+    {
+        try {
+            $user = $this->registrationRepo->findUserByEmail($request->email);
+            if (! $user) {
+                return $this->sendError('User not found.', [], 404);
+            }
+
+            $otp = Otp::where('user_id', $user->id)
+                ->where('otp', $request->otp)
+                ->where('purpose', 'Verification')
+                ->where('is_verified', false)
+                ->where('expires_at', '>', now())
+                ->first();
+
+            if (! $otp) {
+                return $this->sendError('Invalid or expired OTP.', [], 422);
+            }
+
+            $user->update(['email_verified_at' => now()]);
+            $otp->update(['is_verified' => true]);
+
+            $token = $user->createToken('AuthToken')->plainTextToken;
+
+            return $this->sendResponse(new LoginResource($user), 'Email verified successfully.', $token);
+
+        } catch (Exception $e) {
+            return $this->sendError('Verification failed.', [], 500);
         }
     }
 
@@ -146,7 +184,6 @@ class AuthApiController extends Controller
 
             return $this->sendResponse(['email' => $email, 'checkout_url' => $session->url], 'Checkout ready.');
 
-
         } catch (Exception $e) {
             return $this->sendError('Checkout failed', [], 500);
         }
@@ -158,7 +195,9 @@ class AuthApiController extends Controller
             $email = $request->email;
 
             if ($user = $this->registrationRepo->findUserByEmail($email)) {
-                return $this->sendResponse(new RegisterResource($user), 'Registration completed.');
+                $token = $user->createToken('AuthToken')->plainTextToken;
+
+                return $this->sendResponse(new LoginResource($user), 'Registration completed.', $token);
             }
 
             $userData = $this->registrationRepo->getCachedRegistration($email);
@@ -167,8 +206,9 @@ class AuthApiController extends Controller
             }
 
             $user = $this->registrationService->finalizeFromCache($email);
+            $token = $user->createToken('AuthToken')->plainTextToken;
 
-            return $this->sendResponse(new RegisterResource($user), 'Finalized successfully.');
+            return $this->sendResponse(new LoginResource($user), 'Finalized successfully.', $token);
 
         } catch (Exception $e) {
             return $this->sendError('Finalization failed', [], 500);
@@ -177,18 +217,118 @@ class AuthApiController extends Controller
 
     public function resendOtpApi(ResendOtpRequest $request): JsonResponse
     {
-        $user = $this->registrationRepo->findUserByEmail($request->email);
-        $this->SendOtp($user, 'Resend OTP');
+        try {
+            $email = $request->email;
 
-        return $this->sendResponse(new RegisterResource($user), 'OTP resent.');
+            // 1. Check if user exists in DB
+            $user = $this->registrationRepo->findUserByEmail($email);
+            if ($user) {
+                $this->sendOtp($user, $request->purpose ?? 'Resend OTP');
+
+                return $this->sendResponse(['email' => $user->email], 'OTP resent.');
+            }
+
+            // 2. Check if user is in registration cache
+            $userData = $this->registrationRepo->getCachedRegistration($email);
+            if ($userData) {
+                $otp = $this->sendOtpToEmail($email, $userData['name'], 'Verify Your Email Address');
+                $this->registrationRepo->storeCachedOtp($email, $otp);
+
+                return $this->sendResponse(['email' => $email], 'Account verification code resent.');
+            }
+
+            return $this->sendError('User not found or session expired.', [], 404);
+
+        } catch (Exception $e) {
+            return $this->sendError('Failed to resend OTP: '.$e->getMessage(), [], 500);
+        }
     }
 
     public function forgotPasswordApi(ForgotPasswordRequest $request): JsonResponse
     {
-        $user = $this->registrationRepo->findUserByEmail($request->email);
-        $this->SendOtp($user, 'Reset Password');
+        try {
+            $user = $this->registrationRepo->findUserByEmail($request->email);
+            if (! $user) {
+                return $this->sendError('User not found.', [], 404);
+            }
 
-        return $this->sendResponse(new RegisterResource($user), 'OTP sent.');
+            $this->sendOtp($user, 'Reset Password');
+
+            return $this->sendResponse(['email' => $user->email], 'OTP sent for password reset.');
+        } catch (Exception $e) {
+            return $this->sendError($e->getMessage(), [], 500);
+        }
+    }
+
+    public function verifyOtpApi(VerifyOtpRequest $request): JsonResponse
+    {
+        try {
+            $user = $this->registrationRepo->findUserByEmail($request->email);
+            if (! $user) {
+                return $this->sendError('User not found.', [], 404);
+            }
+
+            $otp = Otp::where('user_id', $user->id)
+                ->where('otp', $request->otp)
+                ->where('purpose', 'Reset Password')
+                ->where('is_verified', false)
+                ->where('expires_at', '>', now())
+                ->first();
+
+            if (! $otp) {
+                return $this->sendError('Invalid or expired OTP.', [], 422);
+            }
+
+            // Mark OTP as verified and generate a reset token
+            $rawToken = Str::random(60);
+            $otp->update([
+                'is_verified' => true,
+                'verified_at' => now(),
+                'token' => hash('sha256', $rawToken),
+            ]);
+
+            return $this->sendResponse([
+                'email' => $user->email,
+                'token' => $rawToken,
+                'next_step' => 'reset_password'
+            ], 'OTP verified successfully.');
+
+        } catch (Exception $e) {
+            return $this->sendError('Verification failed.', [], 500);
+        }
+    }
+
+    public function resetPasswordApi(ResetPasswordRequest $request): JsonResponse
+    {
+        try {
+            $user = $this->registrationRepo->findUserByEmail($request->email);
+            if (! $user) {
+                return $this->sendError('User not found.', [], 404);
+            }
+            $otp = Otp::where('user_id', $user->id)
+                ->where('token', hash('sha256', $request->token))
+                ->where('purpose', 'Reset Password')
+                ->where('is_verified', true) // It was verified in the previous step
+                ->where('expires_at', '>', now())
+                ->first();
+
+            if (! $otp) {
+                return $this->sendError('Invalid or expired session.', [], 422);
+            }
+
+            $user->update([
+                'password' => Hash::make($request->password),
+            ]);
+
+            $otp->update(['is_verified' => true]);
+
+            $token = $user->createToken('AuthToken')->plainTextToken;
+
+            return $this->sendResponse(new LoginResource($user), 'Password reset successful.', $token);
+
+        } catch (Exception $e) {
+            return $this->sendError('Password reset failed.', [], 500);
+        }
     }
 
     public function logoutApi(Request $request): JsonResponse

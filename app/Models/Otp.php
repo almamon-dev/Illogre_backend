@@ -12,6 +12,7 @@ class Otp extends Model
     protected $fillable = [
         'user_id',
         'otp',
+        'token',
         'purpose',
         'expires_at',
         'is_verified',

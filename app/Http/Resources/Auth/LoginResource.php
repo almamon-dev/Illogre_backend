@@ -21,11 +21,7 @@ class LoginResource extends JsonResource
             'user_type' => $this->user_type,
             'company_name' => $this->company_name,
             'email_verified_at' => $this->email_verified_at,
-            'is_verified' => $this->is_verified ?? false,
-            $this->mergeWhen($this->user_type === 'supplier', [
-                'is_compliance_verified' => $this->is_compliance_verified ?? false,
-                'compliance_verified_at' => $this->compliance_verified_at,
-            ]),
+            'is_verified' => ! is_null($this->email_verified_at),
             'created_at' => $this->created_at?->toDateTimeString(),
             'updated_at' => $this->updated_at?->toDateTimeString(),
         ];
