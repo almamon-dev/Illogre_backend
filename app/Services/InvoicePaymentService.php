@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Payment;
+use App\Models\UserSubscription;
 use Illuminate\Support\Facades\Log;
 
 class InvoicePaymentService
@@ -27,23 +28,24 @@ class InvoicePaymentService
 
         if ($email && $isRegistration === 'true') {
             Log::info("Processing registration payment for email: {$email}");
-            $user = $this->registrationService->finalizeFromCache($email);
 
-            if ($user) {
-                // Record Payment
-                Payment::create([
-                    'user_id' => $user->id,
-                    'pricing_plan_id' => $user->subscription->pricing_plan_id ?? null,
-                    'external_payment_id' => $session->id,
-                    'amount' => $session->amount_total / 100, // Stripe uses cents
-                    'currency' => strtoupper($session->currency),
-                    'status' => 'completed',
-                    'payment_method' => 'card',
-                ]);
+            $payment = Payment::where('external_payment_id', $session->id)->first();
 
-                Log::info("User registration and payment recorded for: {$user->email}");
+            if ($payment) {
+                $payment->update(['status' => 'completed']);
+
+                // Update subscription status
+                $subscription = UserSubscription::where('user_id', $payment->user_id)->first();
+                if ($subscription) {
+                    $subscription->update(['status' => 'active']);
+                }
+
+                // Finalize from cache (cleanup)
+                $this->registrationService->finalizeFromCache($email);
+
+                Log::info("User registration and payment completed for: {$email}");
             } else {
-                Log::error("Failed to complete registration finalize for: {$email}");
+                Log::error("Payment record not found for session: {$session->id}");
             }
 
         } else {

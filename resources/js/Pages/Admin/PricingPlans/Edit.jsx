@@ -4,12 +4,24 @@ import { Head, Link, router } from '@inertiajs/react';
 import { ChevronLeft, Plus, X, Save } from 'lucide-react';
 
 export default function Edit({ auth, pricingPlan }) {
+    // Helper to find limit from relational features
+    const getLimitValue = (key, defaultValue) => {
+        if (!pricingPlan.features_list) return defaultValue;
+        const feature = pricingPlan.features_list.find(f => f.name === key && f.is_limit);
+        return feature ? feature.value : defaultValue;
+    };
+
     const [formData, setFormData] = useState({
         name: pricingPlan.name || '',
         price: pricingPlan.price || '',
         billing_period: pricingPlan.billing_period || 'monthly',
         trial_days: pricingPlan.trial_days || 0,
-        features: pricingPlan.features && pricingPlan.features.length > 0 ? pricingPlan.features : [''],
+        display_features: pricingPlan.features && pricingPlan.features.length > 0 ? pricingPlan.features : [''],
+        limits: {
+            ticket_limit: getLimitValue('ticket_limit', 2500),
+            member_limit: getLimitValue('member_limit', 10),
+            ai_limit: getLimitValue('ai_limit', 10000),
+        },
         is_active: pricingPlan.is_active ?? true,
         is_popular: pricingPlan.is_popular ?? false,
         order: pricingPlan.order || 0,
@@ -19,28 +31,38 @@ export default function Edit({ auth, pricingPlan }) {
 
     const handleSubmit = (e) => {
         e.preventDefault();
-        const cleanedFeatures = formData.features.filter(f => f.trim() !== '');
-        router.put(route('admin.pricing-plans.update', pricingPlan.id), {
+        const cleanedFeatures = formData.display_features.filter(f => f.trim() !== '');
+        
+        // Backend API requires PUT/PATCH
+        router.post(route('admin.pricing-plans.update', pricingPlan.id), {
+            _method: 'PUT',
             ...formData,
-            features: cleanedFeatures,
+            display_features: cleanedFeatures,
         }, {
             onError: (errors) => setErrors(errors),
         });
     };
 
     const addFeature = () => {
-        setFormData({ ...formData, features: [...formData.features, ''] });
+        setFormData({ ...formData, display_features: [...formData.display_features, ''] });
     };
 
     const removeFeature = (index) => {
-        const newFeatures = formData.features.filter((_, i) => i !== index);
-        setFormData({ ...formData, features: newFeatures.length > 0 ? newFeatures : [''] });
+        const newFeatures = formData.display_features.filter((_, i) => i !== index);
+        setFormData({ ...formData, display_features: newFeatures.length > 0 ? newFeatures : [''] });
     };
 
     const updateFeature = (index, value) => {
-        const newFeatures = [...formData.features];
+        const newFeatures = [...formData.display_features];
         newFeatures[index] = value;
-        setFormData({ ...formData, features: newFeatures });
+        setFormData({ ...formData, display_features: newFeatures });
+    };
+
+    const updateLimit = (key, value) => {
+        setFormData({
+            ...formData,
+            limits: { ...formData.limits, [key]: value }
+        });
     };
 
     return (
@@ -48,7 +70,7 @@ export default function Edit({ auth, pricingPlan }) {
             <Head title={`Edit ${pricingPlan.name}`} />
 
             <div className="min-h-screen bg-[#fafbfc] font-['Plus_Jakarta_Sans',sans-serif]">
-                <div className="max-w-5xl mx-auto px-6 py-8">
+                <div className="max-w-8xl mx-auto px-6 py-8">
                     {/* Header */}
                     <div className="flex items-center justify-between mb-8">
                         <div className="flex items-center gap-3">
@@ -139,10 +161,45 @@ export default function Edit({ auth, pricingPlan }) {
                                 />
                             </div>
 
+                            {/* Plan Limits (Dynamic) */}
+                            <div className="col-span-2 grid grid-cols-3 gap-4 py-2 border-t border-slate-100 mt-2">
+                                <div className="col-span-3 pb-1">
+                                    <h3 className="text-[14px] font-bold text-[#1a1c21]">Plan Limits</h3>
+                                    <p className="text-[12px] text-slate-500">Numerical restrictions for this plan</p>
+                                </div>
+                                <div className="space-y-1.5">
+                                    <label className="text-[12px] font-bold text-slate-600">Ticket Limit</label>
+                                    <input
+                                        type="number"
+                                        value={formData.limits.ticket_limit}
+                                        onChange={(e) => updateLimit('ticket_limit', e.target.value)}
+                                        className="w-full h-10 px-3 bg-[#fafbfc] border border-slate-200 rounded-lg text-[13px] focus:outline-none focus:border-[#c1e663] transition-all"
+                                    />
+                                </div>
+                                <div className="space-y-1.5">
+                                    <label className="text-[12px] font-bold text-slate-600">Member Limit</label>
+                                    <input
+                                        type="number"
+                                        value={formData.limits.member_limit}
+                                        onChange={(e) => updateLimit('member_limit', e.target.value)}
+                                        className="w-full h-10 px-3 bg-[#fafbfc] border border-slate-200 rounded-lg text-[13px] focus:outline-none focus:border-[#c1e663] transition-all"
+                                    />
+                                </div>
+                                <div className="space-y-1.5">
+                                    <label className="text-[12px] font-bold text-slate-600">AI Limit</label>
+                                    <input
+                                        type="number"
+                                        value={formData.limits.ai_limit}
+                                        onChange={(e) => updateLimit('ai_limit', e.target.value)}
+                                        className="w-full h-10 px-3 bg-[#fafbfc] border border-slate-200 rounded-lg text-[13px] focus:outline-none focus:border-[#c1e663] transition-all"
+                                    />
+                                </div>
+                            </div>
+
                             {/* Features */}
-                            <div className="col-span-2 space-y-3 mt-2">
+                            <div className="col-span-2 space-y-3 mt-2 border-t border-slate-100 pt-4">
                                 <div className="flex items-center justify-between">
-                                    <label className="text-[13px] font-bold text-slate-700">Features</label>
+                                    <label className="text-[13px] font-bold text-slate-700">Display Features</label>
                                     <button
                                         type="button"
                                         onClick={addFeature}
@@ -152,7 +209,7 @@ export default function Edit({ auth, pricingPlan }) {
                                     </button>
                                 </div>
                                 <div className="space-y-2">
-                                    {formData.features.map((feature, index) => (
+                                    {formData.display_features.map((feature, index) => (
                                         <div key={index} className="flex items-center gap-2">
                                             <input
                                                 type="text"
@@ -161,7 +218,7 @@ export default function Edit({ auth, pricingPlan }) {
                                                 className="flex-1 h-10 px-3 bg-[#fafbfc] border border-slate-200 rounded-lg text-[13px] focus:outline-none focus:border-[#c1e663] transition-all"
                                                 placeholder="e.g. Unlimited Access"
                                             />
-                                            {formData.features.length > 1 && (
+                                            {formData.display_features.length > 1 && (
                                                 <button
                                                     type="button"
                                                     onClick={() => removeFeature(index)}
@@ -176,7 +233,7 @@ export default function Edit({ auth, pricingPlan }) {
                             </div>
 
                             {/* Options */}
-                            <div className="col-span-2 flex items-center gap-6 pt-2">
+                            <div className="col-span-2 flex items-center gap-6 pt-2 border-t border-slate-100 mt-2">
                                 <label className="flex items-center gap-2 cursor-pointer group">
                                     <input
                                         type="checkbox"

@@ -17,8 +17,7 @@ class DatabaseSeeder extends Seeder
         $this->call([
             PricingPlanSeeder::class,
             UserSeeder::class,
-            // QuoteRequestSeeder::class,
-            // SupplierDashboardSeeder::class,
+            TicketSeeder::class,
         ]);
     }
 }

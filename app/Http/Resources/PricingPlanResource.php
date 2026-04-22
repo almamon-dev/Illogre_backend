@@ -20,10 +20,15 @@ class PricingPlanResource extends JsonResource
             'price' => $this->price,
             'billing_period' => $this->billing_period,
             'trial_days' => $this->trial_days,
-            'features' => $this->features,
             'is_popular' => $this->is_popular,
             'user_type' => $this->user_type,
             'order' => $this->order,
+            'limits' => $this->planFeatures()->where('is_limit', true)->get()->mapWithKeys(function ($f) {
+                return [$f->name => $f->value];
+            }),
+            'detailed_features' => $this->planFeatures()->where('is_limit', false)->get()->map(function ($f) {
+                return $f->name;
+            }),
         ];
     }
 }

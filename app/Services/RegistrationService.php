@@ -27,40 +27,29 @@ class RegistrationService
         }
 
         return DB::transaction(function () use ($userData, $cacheKey) {
-            // 1. Create User
-            $user = User::create([
-                'name' => $userData['name'],
-                'email' => $userData['email'],
-                'password' => $userData['password'], // Already hashed in Step 1
-                'user_type' => $userData['user_type'],
-                'company_name' => $userData['company_name'] ?? null,
-                'email_verified_at' => now(),
-                'status' => 'active',
-            ]);
+            // 1. Update or Create User
+            $user = User::updateOrCreate(
+                ['email' => $userData['email']],
+                [
+                    'name' => $userData['name'],
+                    'password' => $userData['password'], // Already hashed in Step 1
+                    'user_type' => $userData['user_type'],
+                    'company_name' => $userData['company_name'] ?? null,
+                    'terms_accepted_at' => $userData['terms_accepted_at'] ?? null,
+                    'email_verified_at' => now(),
+                    'status' => 'pending',
+                    'payment_method' => 'card',
+                ]
+            );
 
-            // 2. Create Subscription
-            $plan = PricingPlan::find($userData['pricing_plan_id']);
-            if ($plan) {
-                $expiresAt = now();
-                if ($plan->billing_period === 'trial') {
-                    $expiresAt = now()->addDays($plan->trial_days);
-                } elseif ($plan->billing_period === 'monthly') {
-                    $expiresAt = now()->addMonth();
-                } elseif ($plan->billing_period === 'quarterly') {
-                    $expiresAt = now()->addMonths(3);
-                } elseif ($plan->billing_period === 'annual') {
-                    $expiresAt = now()->addYear();
-                }
-
-                UserSubscription::create([
-                    'user_id' => $user->id,
-                    'pricing_plan_id' => $plan->id,
-                    'started_at' => now(),
-                    'expires_at' => $expiresAt,
-                    'status' => 'active',
-                    'is_trial' => $plan->billing_period === 'trial',
-                ]);
-            }
+            // 2. Create pending subscription record
+            UserSubscription::updateOrCreate(
+                ['user_id' => $user->id],
+                [
+                    'pricing_plan_id' => $userData['plan_id'],
+                    'status' => 'pending',
+                ]
+            );
 
             // 3. Cleanup
             Cache::forget("reg_{$cacheKey}");
@@ -90,8 +79,8 @@ class RegistrationService
             ]],
             'mode' => 'payment',
             'customer_email' => $email,
-            'success_url' => url('/registration/success?email=' . urlencode($email)),
-            'cancel_url' => url('/registration/cancel'),
+            'success_url' => config('services.stripe.success_url') . '?email=' . urlencode($email),
+            'cancel_url' => config('services.stripe.cancel_url'),
             'metadata' => [
                 'email' => $email,
                 'is_registration' => 'true'

@@ -11,10 +11,13 @@ use App\Http\Requests\Auth\ResendOtpRequest;
 use App\Http\Requests\Auth\ResetPasswordRequest;
 use App\Http\Requests\Auth\VerifyOtpRequest;
 use App\Http\Resources\Auth\LoginResource;
-use App\Http\Resources\Auth\RegisterResource;
 use App\Models\Otp;
+use App\Models\Payment;
 use App\Models\PricingPlan;
+use App\Models\User;
+use App\Models\UserSubscription;
 use App\Repositories\RegistrationRepository;
+use App\Services\Manager\ManagerService;
 use App\Services\RegistrationService;
 use App\Traits\ApiResponse;
 use App\Traits\SendOtp;
@@ -33,10 +36,16 @@ class AuthApiController extends Controller
 
     protected $registrationService;
 
-    public function __construct(RegistrationRepository $registrationRepo, RegistrationService $registrationService)
-    {
+    protected $managerService;
+
+    public function __construct(
+        RegistrationRepository $registrationRepo,
+        RegistrationService $registrationService,
+        ManagerService $managerService
+    ) {
         $this->registrationRepo = $registrationRepo;
         $this->registrationService = $registrationService;
+        $this->managerService = $managerService;
     }
 
     public function registerApi(RegisterApiRequest $request): JsonResponse
@@ -48,7 +57,7 @@ class AuthApiController extends Controller
                 'email' => $request->email,
                 'password' => Hash::make($request->password),
                 'user_type' => $request->user_type ?? 'owner',
-                'pricing_plan_id' => $request->pricing_plan_id,
+                'terms_accepted_at' => $request->terms ? now() : null,
                 'step' => 1,
                 'email_verified' => false,
             ];
@@ -84,6 +93,16 @@ class AuthApiController extends Controller
                 return $this->sendError('Email Not Verified', [], 403);
             }
 
+            $user->update(['last_login_at' => now()]);
+
+            // Check if user is an owner and has an active subscription
+            if ($user->user_type === 'owner' && ! $user->isSubscribed()) {
+                return $this->sendResponse([
+                    'user' => new LoginResource($user),
+                    'is_subscribed' => false,
+                    'next_step' => 'checkout',
+                ], 'Subscription required. Please complete payment.');
+            }
             $token = $user->createToken('AuthToken')->plainTextToken;
 
             return $this->sendResponse(new LoginResource($user), 'Login successful', $token);
@@ -99,9 +118,7 @@ class AuthApiController extends Controller
             $email = $request->email;
 
             if ($user = $this->registrationRepo->findUserByEmail($email)) {
-                $token = $user->createToken('AuthToken')->plainTextToken;
-
-                return $this->sendResponse(new LoginResource($user), 'Already registered.', $token);
+                return $this->sendResponse(new LoginResource($user), 'Already registered. Please login.');
             }
 
             $cachedOtp = $this->registrationRepo->getCachedOtp($email);
@@ -115,103 +132,68 @@ class AuthApiController extends Controller
             if (! $userData) {
                 return $this->sendError('Session expired.', [], 404);
             }
-
-            $userData['email_verified'] = true;
-            $this->registrationRepo->storeCachedRegistration($email, $userData);
-
-            $plan = PricingPlan::find($userData['pricing_plan_id']);
-            if ($plan && $plan->price > 0) {
-                return $this->sendResponse(['email' => $email, 'next_step' => 'payment'], 'Email verified.');
-            }
-
+            // Create the user account but DO NOT return an access token yet.
             $user = $this->registrationService->finalizeFromCache($email);
             $token = $user->createToken('AuthToken')->plainTextToken;
 
-            return $this->sendResponse(new LoginResource($user), 'Registration successful!', $token);
+            return $this->sendResponse(new LoginResource($user), 'OTP verified and account created. Please proceed to payment to activate your subscription.', $token);
 
         } catch (Exception $e) {
-            return $this->sendError('Verification failed', [], 500);
+            return $this->sendError('Verification failed', [$e->getMessage()], 500);
         }
     }
 
-    public function verifyEmailApi(VerifyOtpRequest $request): JsonResponse
-    {
-        try {
-            $user = $this->registrationRepo->findUserByEmail($request->email);
-            if (! $user) {
-                return $this->sendError('User not found.', [], 404);
-            }
 
-            $otp = Otp::where('user_id', $user->id)
-                ->where('otp', $request->otp)
-                ->where('purpose', 'Verification')
-                ->where('is_verified', false)
-                ->where('expires_at', '>', now())
-                ->first();
-
-            if (! $otp) {
-                return $this->sendError('Invalid or expired OTP.', [], 422);
-            }
-
-            $user->update(['email_verified_at' => now()]);
-            $otp->update(['is_verified' => true]);
-
-            $token = $user->createToken('AuthToken')->plainTextToken;
-
-            return $this->sendResponse(new LoginResource($user), 'Email verified successfully.', $token);
-
-        } catch (Exception $e) {
-            return $this->sendError('Verification failed.', [], 500);
-        }
-    }
 
     public function initiateCheckout(Request $request): JsonResponse
     {
         try {
             $email = $request->email;
+            $user = auth()->user() ?: $this->registrationRepo->findUserByEmail($email);
 
-            if ($user = $this->registrationRepo->findUserByEmail($email)) {
-                return $this->sendResponse(new RegisterResource($user), 'Already registered.');
+            if (! $user) {
+                return $this->sendError('User not found. Please register and verify your email first.', [], 404);
             }
 
-            $userData = $this->registrationRepo->getCachedRegistration($email);
-            if (! $userData || ! ($userData['email_verified'] ?? false)) {
-                return $this->sendError('Unauthorized or expired session.', [], 403);
+            $planId = $request->pricing_plan_id;
+            if (! $planId) {
+                return $this->sendError('Pricing plan is required.', [], 422);
             }
 
-            $plan = PricingPlan::findOrFail($userData['pricing_plan_id']);
-            $session = $this->registrationService->createCheckoutSession($email, $plan);
+            $plan = PricingPlan::findOrFail($planId);
+            $session = $this->registrationService->createCheckoutSession($user->email, $plan);
 
-            return $this->sendResponse(['email' => $email, 'checkout_url' => $session->url], 'Checkout ready.');
+            // Create pending payment record
+            Payment::create([
+                'user_id' => $user->id,
+                'pricing_plan_id' => $plan->id,
+                'external_payment_id' => $session->id,
+                'amount' => $plan->price,
+                'currency' => 'USD',
+                'status' => 'pending',
+                'payment_method' => 'card',
+            ]);
+
+            // Create pending subscription record
+            UserSubscription::updateOrCreate(
+                ['user_id' => $user->id],
+                [
+                    'pricing_plan_id' => $plan->id,
+                    'status' => 'pending',
+                    'is_trial' => false,
+                    'started_at' => now(),
+                    'expires_at' => now()->addMonth(),
+                ]
+            );
+
+            return $this->sendResponse([
+                'email' => $user->email,
+                'checkout_url' => $session->url,
+                'is_subscribed' => $user->isSubscribed(),
+            ], 'Checkout ready.');
 
         } catch (Exception $e) {
-            return $this->sendError('Checkout failed', [], 500);
-        }
-    }
-
-    public function finalizeRegistration(Request $request): JsonResponse
-    {
-        try {
-            $email = $request->email;
-
-            if ($user = $this->registrationRepo->findUserByEmail($email)) {
-                $token = $user->createToken('AuthToken')->plainTextToken;
-
-                return $this->sendResponse(new LoginResource($user), 'Registration completed.', $token);
-            }
-
-            $userData = $this->registrationRepo->getCachedRegistration($email);
-            if (! $userData || ! ($userData['email_verified'] ?? false)) {
-                return $this->sendError('Invalid session.', [], 403);
-            }
-
-            $user = $this->registrationService->finalizeFromCache($email);
-            $token = $user->createToken('AuthToken')->plainTextToken;
-
-            return $this->sendResponse(new LoginResource($user), 'Finalized successfully.', $token);
-
-        } catch (Exception $e) {
-            return $this->sendError('Finalization failed', [], 500);
+            return $this->sendError('Checkout failed: '.$e->getMessage(), [], 500);
         }
     }
 
@@ -290,7 +272,7 @@ class AuthApiController extends Controller
             return $this->sendResponse([
                 'email' => $user->email,
                 'token' => $rawToken,
-                'next_step' => 'reset_password'
+                'next_step' => 'reset_password',
             ], 'OTP verified successfully.');
 
         } catch (Exception $e) {
@@ -336,5 +318,64 @@ class AuthApiController extends Controller
         $request->user()->currentAccessToken()->delete();
 
         return $this->sendResponse([], 'Logout successful.');
+    }
+
+    /**
+     * Accept a team invitation and activate the account.
+     */
+    public function acceptInvitation($token): JsonResponse
+    {
+        try {
+            $email = base64_decode($token);
+
+            $user = User::where('email', $email)
+                ->where('status', 'invited')
+                ->first();
+
+            if (! $user) {
+                return $this->sendError('Invalid or expired invitation.', [], 404);
+            }
+
+            // Activate user and sync business name from owner
+            $owner = $user->owner;
+
+            $user->update([
+                'status' => 'active',
+                'email_verified_at' => now(),
+                'company_name' => $owner ? $owner->company_name : $user->company_name,
+                'last_login_at' => now(),
+                'last_active_at' => now(),
+                'terms_accepted_at' => now(),
+            ]);
+
+            return $this->sendResponse([
+                'email' => $user->email,
+                'message' => 'Invitation accepted successfully. You can now login with your temporary password.',
+            ], 'Account activated.');
+
+        } catch (Exception $e) {
+            return $this->sendError('Failed to accept invitation.', [$e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * Accept a Support Agent invitation.
+     */
+    public function acceptAgentInvitation(Request $request): JsonResponse
+    {
+        try {
+            $token = $request->query('token');
+            if (! $token) {
+                return $this->sendError('Invitation token is required.', [], 400);
+            }
+
+            $user = $this->managerService->acceptInvitation($token);
+
+            $token = $user->createToken('AuthToken')->plainTextToken;
+
+            return $this->sendResponse(new LoginResource($user), 'Invitation accepted and account activated successfully.', $token);
+        } catch (Exception $e) {
+            return $this->sendError('Failed to accept invitation.', [$e->getMessage()]);
+        }
     }
 }

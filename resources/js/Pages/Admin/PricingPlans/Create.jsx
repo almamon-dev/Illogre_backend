@@ -9,7 +9,12 @@ export default function Create({ auth }) {
         price: '',
         billing_period: 'monthly',
         trial_days: 0,
-        features: [''],
+        display_features: [''],
+        limits: {
+            ticket_limit: 2500,
+            member_limit: 10,
+            ai_limit: 10000,
+        },
         is_active: true,
         is_popular: false,
         order: 0,
@@ -19,28 +24,35 @@ export default function Create({ auth }) {
 
     const handleSubmit = (e) => {
         e.preventDefault();
-        const cleanedFeatures = formData.features.filter(f => f.trim() !== '');
+        const cleanedFeatures = formData.display_features.filter(f => f.trim() !== '');
         router.post(route('admin.pricing-plans.store'), {
             ...formData,
-            features: cleanedFeatures,
+            display_features: cleanedFeatures,
         }, {
             onError: (errors) => setErrors(errors),
         });
     };
 
     const addFeature = () => {
-        setFormData({ ...formData, features: [...formData.features, ''] });
+        setFormData({ ...formData, display_features: [...formData.display_features, ''] });
     };
 
     const removeFeature = (index) => {
-        const newFeatures = formData.features.filter((_, i) => i !== index);
-        setFormData({ ...formData, features: newFeatures.length > 0 ? newFeatures : [''] });
+        const newFeatures = formData.display_features.filter((_, i) => i !== index);
+        setFormData({ ...formData, display_features: newFeatures.length > 0 ? newFeatures : [''] });
     };
 
     const updateFeature = (index, value) => {
-        const newFeatures = [...formData.features];
+        const newFeatures = [...formData.display_features];
         newFeatures[index] = value;
-        setFormData({ ...formData, features: newFeatures });
+        setFormData({ ...formData, display_features: newFeatures });
+    };
+
+    const updateLimit = (key, value) => {
+        setFormData({
+            ...formData,
+            limits: { ...formData.limits, [key]: value }
+        });
     };
 
     return (
@@ -139,10 +151,45 @@ export default function Create({ auth }) {
                                 />
                             </div>
 
+                            {/* Plan Limits (Dynamic) */}
+                            <div className="col-span-2 grid grid-cols-3 gap-4 py-2 border-t border-slate-100 mt-2">
+                                <div className="col-span-3 pb-1">
+                                    <h3 className="text-[14px] font-bold text-[#1a1c21]">Plan Limits</h3>
+                                    <p className="text-[12px] text-slate-500">Numerical restrictions for this plan</p>
+                                </div>
+                                <div className="space-y-1.5">
+                                    <label className="text-[12px] font-bold text-slate-600">Ticket Limit</label>
+                                    <input
+                                        type="number"
+                                        value={formData.limits.ticket_limit}
+                                        onChange={(e) => updateLimit('ticket_limit', e.target.value)}
+                                        className="w-full h-10 px-3 bg-[#fafbfc] border border-slate-200 rounded-lg text-[13px] focus:outline-none focus:border-[#c1e663] transition-all"
+                                    />
+                                </div>
+                                <div className="space-y-1.5">
+                                    <label className="text-[12px] font-bold text-slate-600">Member Limit</label>
+                                    <input
+                                        type="number"
+                                        value={formData.limits.member_limit}
+                                        onChange={(e) => updateLimit('member_limit', e.target.value)}
+                                        className="w-full h-10 px-3 bg-[#fafbfc] border border-slate-200 rounded-lg text-[13px] focus:outline-none focus:border-[#c1e663] transition-all"
+                                    />
+                                </div>
+                                <div className="space-y-1.5">
+                                    <label className="text-[12px] font-bold text-slate-600">AI Limit</label>
+                                    <input
+                                        type="number"
+                                        value={formData.limits.ai_limit}
+                                        onChange={(e) => updateLimit('ai_limit', e.target.value)}
+                                        className="w-full h-10 px-3 bg-[#fafbfc] border border-slate-200 rounded-lg text-[13px] focus:outline-none focus:border-[#c1e663] transition-all"
+                                    />
+                                </div>
+                            </div>
+
                             {/* Features */}
-                            <div className="col-span-2 space-y-3 mt-2">
+                            <div className="col-span-2 space-y-3 mt-2 border-t border-slate-100 pt-4">
                                 <div className="flex items-center justify-between">
-                                    <label className="text-[13px] font-bold text-slate-700">Features</label>
+                                    <label className="text-[13px] font-bold text-slate-700">Display Features</label>
                                     <button
                                         type="button"
                                         onClick={addFeature}
@@ -152,7 +199,7 @@ export default function Create({ auth }) {
                                     </button>
                                 </div>
                                 <div className="space-y-2">
-                                    {formData.features.map((feature, index) => (
+                                    {formData.display_features.map((feature, index) => (
                                         <div key={index} className="flex items-center gap-2">
                                             <input
                                                 type="text"
@@ -161,7 +208,7 @@ export default function Create({ auth }) {
                                                 className="flex-1 h-10 px-3 bg-[#fafbfc] border border-slate-200 rounded-lg text-[13px] focus:outline-none focus:border-[#c1e663] transition-all"
                                                 placeholder="e.g. Unlimited Access"
                                             />
-                                            {formData.features.length > 1 && (
+                                            {formData.display_features.length > 1 && (
                                                 <button
                                                     type="button"
                                                     onClick={() => removeFeature(index)}

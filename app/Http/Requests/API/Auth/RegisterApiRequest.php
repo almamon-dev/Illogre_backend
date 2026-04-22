@@ -20,7 +20,6 @@ class RegisterApiRequest extends FormRequest
             'email' => ['required', 'string', 'email', 'max:255', 'unique:users'],
             'password' => ['required', 'string', 'min:8', 'confirmed'],
             'user_type' => ['required', Rule::in(['owner', 'super_admin'])],
-            'pricing_plan_id' => ['required', 'exists:pricing_plans,id'],
             'terms' => ['required', 'accepted'],
         ];
 
@@ -30,7 +29,6 @@ class RegisterApiRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'pricing_plan_id.required' => 'Please select a valid subscription plan.',
             'terms.accepted' => 'You must accept the terms and conditions.',
             'company_name.required' => 'Company name is mandatory.',
         ];

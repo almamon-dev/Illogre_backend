@@ -6,11 +6,11 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Facades\Crypt;
 use Laravel\Sanctum\HasApiTokens;
 
 class User extends Authenticatable
 {
-    /** @use HasFactory<\Database\Factories\UserFactory> */
     use HasApiTokens, HasFactory, Notifiable;
 
     /**
@@ -31,6 +31,7 @@ class User extends Authenticatable
         'status',
         'terms_accepted_at',
         'last_login_at',
+        'last_active_at',
     ];
 
     /**
@@ -57,6 +58,7 @@ class User extends Authenticatable
             'terms_accepted_at' => 'datetime',
             'last_login_at' => 'datetime',
             'reset_password_token_expire_at' => 'datetime',
+            'last_active_at' => 'datetime',
         ];
     }
 
@@ -90,5 +92,51 @@ class User extends Authenticatable
     public function subscription()
     {
         return $this->hasOne(UserSubscription::class)->latestOfMany();
+    }
+
+    /**
+     * Get the user's settings (pivot).
+     */
+    public function settings()
+    {
+        return $this->hasMany(UserSetting::class);
+    }
+
+    /**
+     * Helper to get a setting value.
+     */
+    public function getSetting($key, $default = null)
+    {
+        $setting = $this->settings()->where('key', $key)->first();
+
+        if ($setting && $key === 'secret_key' && $setting->value) {
+            try {
+                return Crypt::decryptString($setting->value);
+            } catch (\Exception $e) {
+                return $setting->value;
+            }
+        }
+
+        return $setting ? $setting->value : $default;
+    }
+
+    /**
+     * Check if the user has an active subscription.
+     */
+    public function isSubscribed()
+    {
+        return $this->subscription()->exists();
+    }
+
+    /**
+     * Check if the AI settings are configured.
+     */
+    public function isAiConfigured(): bool
+    {
+        if ($this->user_type === 'owner') {
+            return ! empty($this->getSetting('secret_key')) && ! empty($this->getSetting('ai_provider'));
+        }
+
+        return true;
     }
 }

@@ -22,8 +22,10 @@ class LoginResource extends JsonResource
             'company_name' => $this->company_name,
             'email_verified_at' => $this->email_verified_at,
             'is_verified' => ! is_null($this->email_verified_at),
+            'is_subscribed' => $this->isSubscribed(),
             'created_at' => $this->created_at?->toDateTimeString(),
             'updated_at' => $this->updated_at?->toDateTimeString(),
+            'next_step' => 'checkout',
         ];
     }
 }

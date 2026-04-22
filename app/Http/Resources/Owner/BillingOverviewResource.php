@@ -14,17 +14,17 @@ class BillingOverviewResource extends JsonResource
                 'tickets_used' => [
                     'current' => $this['usage']['tickets_used'],
                     'total' => $this['usage']['tickets_total'],
-                    'percentage' => round(($this['usage']['tickets_used'] / $this['usage']['tickets_total']) * 100),
+                    'percentage' => $this['usage']['tickets_total'] > 0 ? round(($this['usage']['tickets_used'] / $this['usage']['tickets_total']) * 100) : 0,
                 ],
                 'team_members' => [
                     'current' => $this['usage']['team_members'],
                     'total' => $this['usage']['team_total'],
-                    'percentage' => round(($this['usage']['team_members'] / $this['usage']['team_total']) * 100),
+                    'percentage' => $this['usage']['team_total'] > 0 ? round(($this['usage']['team_members'] / $this['usage']['team_total']) * 100) : 0,
                 ],
                 'ai_actions' => [
                     'current' => $this['usage']['ai_actions'],
                     'total' => $this['usage']['ai_total'],
-                    'percentage' => round(($this['usage']['ai_actions'] / $this['usage']['ai_total']) * 100),
+                    'percentage' => $this['usage']['ai_total'] > 0 ? round(($this['usage']['ai_actions'] / $this['usage']['ai_total']) * 100) : 0,
                 ],
 
             ],

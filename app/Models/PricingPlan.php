@@ -23,13 +23,10 @@ class PricingPlan extends Model
     protected $casts = [
         'features' => 'array',
         'price' => 'decimal:2',
-        'trial_days' => 'integer',
-        'is_active' => 'boolean',
-        'is_popular' => 'boolean',
     ];
 
-    public function subscriptions()
+    public function planFeatures()
     {
-        return $this->hasMany(UserSubscription::class);
+        return $this->hasMany(PricingPlanFeature::class);
     }
 }

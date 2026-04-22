@@ -1,8 +1,13 @@
 <?php
 
+use App\Http\Middleware\HandleInertiaRequests;
+use App\Http\Middleware\IsSupportAgent;
+use App\Http\Middleware\IsSupportManager;
+use App\Http\Middleware\UpdateUserActivity;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
+use Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -13,14 +18,18 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        $middleware->api(append: [
+            UpdateUserActivity::class,
+        ]);
+
         $middleware->web(append: [
-            \App\Http\Middleware\HandleInertiaRequests::class,
-            \Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets::class,
+            HandleInertiaRequests::class,
+            AddLinkHeadersForPreloadedAssets::class,
         ]);
 
         $middleware->alias([
-            'customer' => \App\Http\Middleware\IsCustomer::class,
-            'supplier' => \App\Http\Middleware\IsSupplier::class,
+            'support_manager' => IsSupportManager::class,
+            'support_agent' => IsSupportAgent::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

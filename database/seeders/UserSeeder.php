@@ -42,7 +42,7 @@ class UserSeeder extends Seeder
         ]);
 
         // Create Subscription for Owner
-        $plan = PricingPlan::where('name', 'Growth')->first();
+        $plan = PricingPlan::where('name', 'Starter')->first();
         if ($plan) {
             UserSubscription::create([
                 'user_id' => $owner->id,
@@ -64,6 +64,32 @@ class UserSeeder extends Seeder
                 'payment_method' => 'card',
             ]);
         }
+
+        // --- Create Support Manager (Parent is Owner) ---
+        $manager = User::create([
+            'name' => 'Mila Manager',
+            'email' => 'manager@test.com',
+            'password' => Hash::make('password123'),
+            'user_type' => 'member',
+            'role' => 'Support Manager',
+            'parent_id' => $owner->id,
+            'company_name' => $owner->company_name,
+            'email_verified_at' => now(),
+            'status' => 'active',
+        ]);
+
+        // --- Create Support Agent (Parent is Manager) ---
+        User::create([
+            'name' => 'Sarah Agent',
+            'email' => 'agent@test.com',
+            'password' => Hash::make('password123'),
+            'user_type' => 'member',
+            'role' => 'Support Agent',
+            'parent_id' => $manager->id,
+            'company_name' => $owner->company_name,
+            'email_verified_at' => now(),
+            'status' => 'active',
+        ]);
 
 
     }

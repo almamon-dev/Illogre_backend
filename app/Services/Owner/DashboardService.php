@@ -6,7 +6,7 @@ class DashboardService
 {
     public function getOverviewData(): array
     {
-        // ইমেজ অনুযায়ী ডামি ডাটা
+
         return [
             'stats' => [
                 'total_tickets' => 1234,
@@ -30,7 +30,7 @@ class DashboardService
                     ['week' => 'Week 2', 'resolved' => 250, 'total' => 500],
                     ['week' => 'Week 3', 'resolved' => 450, 'total' => 600],
                     ['week' => 'Week 4', 'resolved' => 280, 'total' => 450],
-                ]
+                ],
             ],
             'recent_tickets' => [
                 [
@@ -41,7 +41,7 @@ class DashboardService
                     'confidence' => 82,
                     'status' => 'Resolved',
                     'assigned' => 'AI Agent',
-                    'updated' => '10 min ago'
+                    'updated' => '10 min ago',
                 ],
                 [
                     'ticket_id' => 'ORD-10025',
@@ -51,7 +51,7 @@ class DashboardService
                     'confidence' => 95,
                     'status' => 'Resolved',
                     'assigned' => 'AI Agent',
-                    'updated' => '10 min ago'
+                    'updated' => '10 min ago',
                 ],
                 [
                     'ticket_id' => 'ORD-10026',
@@ -61,7 +61,7 @@ class DashboardService
                     'confidence' => 42,
                     'status' => 'Resolved',
                     'assigned' => 'AI Agent',
-                    'updated' => '10 min ago'
+                    'updated' => '10 min ago',
                 ],
                 [
                     'ticket_id' => 'ORD-10027',
@@ -71,7 +71,7 @@ class DashboardService
                     'confidence' => 0,
                     'status' => 'Pending',
                     'assigned' => 'AI Agent',
-                    'updated' => '10 min ago'
+                    'updated' => '10 min ago',
                 ],
                 [
                     'ticket_id' => 'ORD-10028',
@@ -81,9 +81,9 @@ class DashboardService
                     'confidence' => 15,
                     'status' => 'Resolved',
                     'assigned' => 'AI Agent',
-                    'updated' => '10 min ago'
-                ]
-            ]
+                    'updated' => '10 min ago',
+                ],
+            ],
         ];
     }
 }
