@@ -5,12 +5,13 @@ use App\Http\Controllers\API\Agent\TicketController;
 use App\Http\Controllers\API\Auth\AuthApiController;
 use App\Http\Controllers\API\Manager\AgentController;
 use App\Http\Controllers\API\Owner\BillingController;
+use App\Http\Controllers\API\Owner\CustomerController;
 use App\Http\Controllers\API\Owner\DashboardController;
+use App\Http\Controllers\API\Owner\KnowledgeSourceApiController;
 use App\Http\Controllers\API\Owner\SettingsApiController;
 use App\Http\Controllers\API\Owner\TeamController;
 use App\Http\Controllers\API\PricingPlanApiController;
 use App\Http\Controllers\API\StripeWebhookController;
-use App\Http\Controllers\API\Owner\KnowledgeSourceApiController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -35,11 +36,9 @@ Route::prefix('auth')->group(function () {
     Route::post('/login', [AuthApiController::class, 'loginApi']);
 
     // Password Reset Flow
-    Route::prefix('password')->group(function () {
-        Route::post('/forgot', [AuthApiController::class, 'forgotPasswordApi']);
-        Route::post('/verify-otp', [AuthApiController::class, 'verifyOtpApi']);
-        Route::post('/reset', [AuthApiController::class, 'resetPasswordApi']);
-    });
+    Route::post('/forgot-password', [AuthApiController::class, 'forgotPasswordApi']);
+    Route::post('/verify-otp', [AuthApiController::class, 'verifyOtpApi']);
+    Route::post('/reset-password', [AuthApiController::class, 'resetPasswordApi']);
 
     // Invitations
     Route::post('/accept-invitation/{token}', [AuthApiController::class, 'acceptInvitation']);
@@ -54,15 +53,17 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/auth/logout', [AuthApiController::class, 'logoutApi']);
 
     // Owner Dashboard
-    Route::prefix('owner')->group(function () {
+    Route::prefix('owner')->middleware(['owner'])->group(function () {
         Route::get('/dashboard/overview', [DashboardController::class, 'index']);
         Route::get('/billing/overview', [BillingController::class, 'index']);
 
-        // Team Management
-        Route::get('/team', [TeamController::class, 'index']);
-        Route::post('/team/invite', [TeamController::class, 'invite']);
-        Route::patch('/team/{id}', [TeamController::class, 'update']);
-        Route::delete('/team/{id}', [TeamController::class, 'destroy']);
+        // Team Management (Requires Subscription)
+        Route::middleware(['subscribed'])->group(function () {
+            Route::get('/team', [TeamController::class, 'index']);
+            Route::post('/team/invite', [TeamController::class, 'invite']);
+            Route::patch('/team/{id}', [TeamController::class, 'update']);
+            Route::delete('/team/{id}', [TeamController::class, 'destroy']);
+        });
 
         // Settings Management
         Route::prefix('settings')->group(function () {
@@ -73,8 +74,17 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::patch('/notifications', [SettingsApiController::class, 'updateNotifications']);
             Route::patch('/security', [SettingsApiController::class, 'updateSecurity']);
         });
-        // Knowledge Base
-        Route::prefix('knowledge-base')->group(function () {
+        // Customer Management
+        Route::prefix('customers')->middleware(['subscribed'])->group(function () {
+            Route::get('/', [CustomerController::class, 'index']);
+            Route::post('/', [CustomerController::class, 'store']);
+            Route::get('/{id}', [CustomerController::class, 'show']);
+            Route::patch('/{id}', [CustomerController::class, 'update']);
+            Route::delete('/{id}', [CustomerController::class, 'destroy']);
+        });
+
+        // Knowledge Base (Requires Subscription)
+        Route::prefix('knowledge-base')->middleware(['subscribed'])->group(function () {
             Route::get('/', [KnowledgeSourceApiController::class, 'index']);
             Route::post('/', [KnowledgeSourceApiController::class, 'store']);
             Route::delete('/{knowledgeSource}', [KnowledgeSourceApiController::class, 'destroy']);
@@ -86,15 +96,19 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/pricing-plans', [PricingPlanController::class, 'store']);
     });
 
-    // Support Manager Routes
-    Route::prefix('manager')->middleware(['auth:sanctum', 'support_manager'])->group(function () {
+    // Support Manager Routes (Requires Subscription from Owner)
+    Route::prefix('manager')->middleware(['support_manager', 'subscribed'])->group(function () {
         Route::get('/agents', [AgentController::class, 'index']);
         Route::post('/agents', [AgentController::class, 'store']);
         Route::put('/agents/{id}', [AgentController::class, 'update']);
         Route::delete('/agents/{id}', [AgentController::class, 'destroy']);
     });
     // Support Agent Routes
-    Route::prefix('agent')->middleware(['auth:sanctum', 'support_agent'])->group(function () {
+    Route::prefix('agent')->middleware(['support_agent', 'subscribed'])->group(function () {
         Route::get('/tickets', [TicketController::class, 'index']);
+        
+        // Agent Customer Access
+        Route::get('/customers', [CustomerController::class, 'index']);
+        Route::get('/customers/{id}', [CustomerController::class, 'show']);
     });
 });

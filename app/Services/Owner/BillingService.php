@@ -17,17 +17,23 @@ class BillingService
     {
         $user = auth()->user();
         $subscription = $user->subscription()->with('pricingPlan.planFeatures')->first();
-        $plan = $subscription ? $subscription->pricingPlan : null;
+        $isActive = $subscription && $subscription->status === 'active' && $subscription->expires_at > now();
+        $plan = $isActive ? $subscription->pricingPlan : null;
 
-        // Dynamic Team Members count (Owner + Members)
-        $teamMembersCount = User::where('parent_id', $user->id)->count() + 1;
-        
-        // Limits from plan features table or defaults
-        $features = $plan ? $plan->planFeatures : collect();
-        
-        $ticketTotal = (int) ($features->where('name', 'ticket_limit')->first()?->value ?? 500);
-        $memberTotal = (int) ($features->where('name', 'member_limit')->first()?->value ?? 2);
-        $aiTotal = (int) ($features->where('name', 'ai_limit')->first()?->value ?? 1000);
+        // Dynamic Team Members count (Excluding Owner)
+        $teamMembersCount = User::where('parent_id', $user->id)->count();
+
+        // Limits from plan features or 0 if no active plan
+        if ($isActive && $plan) {
+            $features = $plan->planFeatures;
+            $ticketTotal = (int) ($features->where('name', 'ticket_limit')->first()?->value ?? 0);
+            $memberTotal = (int) ($features->where('name', 'member_limit')->first()?->value ?? 0);
+            $aiTotal = (int) ($features->where('name', 'ai_limit')->first()?->value ?? 0);
+        } else {
+            $ticketTotal = 0;
+            $memberTotal = 0;
+            $aiTotal = 0;
+        }
 
         // Fetch dynamic usage from database
         $usages = SubscriptionUsage::where('user_id', $user->id)->get();
@@ -61,9 +67,10 @@ class BillingService
                 'ai_total' => $aiTotal,
             ],
             'plan' => [
-                'name' => $plan ? $plan->name : 'Free Trial',
-                'price' => $plan ? $plan->price : 0,
-                'description' => $plan ? 'Up to '.number_format($ticketTotal).' tickets' : 'Starter features',
+                'is_active' => $isActive,
+                'name' => $plan ? $plan->name : 'No Active Plan',
+                'price' => $plan ? '$'.number_format($plan->price, 0).'/month' : '$0/month',
+                'description' => $plan ? 'Up to '.number_format($ticketTotal).' tickets' : 'Subscribe to a plan to start.',
             ],
             'history' => $payments,
         ];
@@ -88,9 +95,9 @@ class BillingService
             $limitValue = $limitFeature ? (int) $limitFeature->value : 0;
         }
 
-        // For member_limit, we count active users
+        // For member_limit, we count active users (Excluding Owner)
         if ($feature === 'member_limit') {
-            $currentUsage = User::where('parent_id', $userId)->count() + 1; // Including owner
+            $currentUsage = User::where('parent_id', $userId)->count();
         } else {
             // For other features, check usage table
             $usage = SubscriptionUsage::where('user_id', $userId)

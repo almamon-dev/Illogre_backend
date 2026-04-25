@@ -26,21 +26,21 @@ return new class extends Migration
             // owner: Subscriber (Team Creator)
             // member: Team Staff
             $table->enum('user_type', ['super_admin', 'owner', 'member'])->default('owner');
-            
+
             // Team-specific role (e.g., 'Support Manager')
             $table->string('role')->nullable();
-            
-            $table->enum('status', ['active', 'invited', 'disabled'])->default('active');
-            
+
+            $table->enum('status', ['active', 'invited', 'disabled', 'pending'])->default('active');
+
             $table->string('reset_password_token', 100)->nullable();
             $table->timestamp('reset_password_token_expire_at')->nullable();
             $table->timestamp('last_login_at')->nullable();
+            $table->timestamp('last_active_at')->nullable();
             $table->timestamp('terms_accepted_at')->nullable();
-            
+
             $table->rememberToken();
             $table->timestamps();
         });
-
         Schema::create('password_reset_tokens', function (Blueprint $table) {
             $table->string('email')->primary();
             $table->string('token');

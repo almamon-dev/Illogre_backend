@@ -57,6 +57,7 @@ class AuthApiController extends Controller
                 'email' => $request->email,
                 'password' => Hash::make($request->password),
                 'user_type' => $request->user_type ?? 'owner',
+                'role' => ($request->user_type ?? 'owner') === 'owner' ? 'owner' : null,
                 'terms_accepted_at' => $request->terms ? now() : null,
                 'step' => 1,
                 'email_verified' => false,
@@ -95,14 +96,6 @@ class AuthApiController extends Controller
 
             $user->update(['last_login_at' => now()]);
 
-            // Check if user is an owner and has an active subscription
-            if ($user->user_type === 'owner' && ! $user->isSubscribed()) {
-                return $this->sendResponse([
-                    'user' => new LoginResource($user),
-                    'is_subscribed' => false,
-                    'next_step' => 'checkout',
-                ], 'Subscription required. Please complete payment.');
-            }
             $token = $user->createToken('AuthToken')->plainTextToken;
 
             return $this->sendResponse(new LoginResource($user), 'Login successful', $token);
@@ -251,13 +244,13 @@ class AuthApiController extends Controller
             }
 
             $otp = Otp::where('user_id', $user->id)
-                ->where('otp', $request->otp)
                 ->where('purpose', 'Reset Password')
                 ->where('is_verified', false)
                 ->where('expires_at', '>', now())
+                ->latest()
                 ->first();
 
-            if (! $otp) {
+            if (!$otp || $otp->otp != $request->otp) {
                 return $this->sendError('Invalid or expired OTP.', [], 422);
             }
 

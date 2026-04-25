@@ -15,14 +15,28 @@ class TeamService
      */
     public function getTeamData($ownerId): array
     {
-        $owner = User::findOrFail($ownerId);
-        $members = $owner->members()->latest()->get();
+        $owner = User::with(['members' => function($query) {
+            $query->withCount([
+                'tickets',
+                'tickets as resolved_tickets_count' => function ($query) {
+                    $query->where('status', 'Resolved');
+                }
+            ])->latest();
+        }])->findOrFail($ownerId);
+
+        $members = $owner->members;
+
+        // Calculate total resolved for the whole team
+        $ownerResolvedCount = \App\Models\Ticket::where('owner_id', $ownerId)->where('status', 'Resolved')->count();
+        $teamResolvedCount = $members->sum('resolved_tickets_count') + $ownerResolvedCount;
 
         return [
             'stats' => [
                 'total_members' => $members->count(),
-                'online_now' => $members->where('last_active_at', '>', now()->subMinutes(5))->count(),
-                'total_resolved' => 0, // Placeholder for future implementation
+                'online_now' => $members->filter(function ($member) {
+                    return $member->last_active_at && $member->last_active_at->gt(now()->subMinutes(5));
+                })->count(),
+                'total_resolved' => $teamResolvedCount,
             ],
             'members' => $members
         ];

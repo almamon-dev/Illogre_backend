@@ -68,7 +68,7 @@
             </div>
 
             <div style="text-align: center; margin: 35px 0;">
-                <a href="{{ config('app.url') }}/api/auth/accept-invitation/{{ $token }}" 
+                <a href="{{ config('app.frontend_url') }}/auth/accept-invitation/{{ $token }}" 
                    style="background-color: #14a800; color: #ffffff; padding: 14px 30px; text-decoration: none; font-size: 16px; font-weight: 500; border-radius: 25px; display: inline-block;">
                     Accept Invitation
                 </a>

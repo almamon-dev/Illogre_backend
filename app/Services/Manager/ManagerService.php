@@ -48,7 +48,7 @@ class ManagerService
 
         // Generate Accept URL (token is the email)
         $token = base64_encode($data['email']);
-        $acceptUrl = config('app.url').'/api/auth/accept-agent-invitation?token='.$token;
+        $acceptUrl = config('app.frontend_url').'/auth/accept-agent-invitation?token='.$token;
 
         Mail::to($data['email'])->send(new AgentInvitationMail($manager->name, $acceptUrl, $password, $data['email']));
 
@@ -96,8 +96,17 @@ class ManagerService
     {
         $agents = User::where('parent_id', $managerId)
             ->where('role', 'Support Agent')
+            ->withCount([
+                'tickets',
+                'tickets as resolved_tickets_count' => function ($query) {
+                    $query->where('status', 'Resolved');
+                }
+            ])
             ->latest()
             ->get();
+
+        $managerResolvedCount = \App\Models\Ticket::where('owner_id', $managerId)->where('status', 'Resolved')->count();
+        $totalResolved = $agents->sum('resolved_tickets_count') + $managerResolvedCount;
 
         return [
             'stats' => [
@@ -105,7 +114,7 @@ class ManagerService
                 'online_now' => $agents->filter(function ($agent) {
                     return $agent->last_active_at && $agent->last_active_at->gt(now()->subMinutes(5));
                 })->count(),
-                'total_resolved' => 0, // Placeholder until tickets table is ready
+                'total_resolved' => $totalResolved,
             ],
             'agents' => $agents,
         ];

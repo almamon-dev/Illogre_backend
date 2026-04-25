@@ -28,11 +28,11 @@ class BillingOverviewResource extends JsonResource
                 ],
 
             ],
-            'current_plan' => [
+            'current_plan' => $this['plan']['is_active'] ? [
                 'name' => $this['plan']['name'],
-                'price' => '$'.$this['plan']['price'].'/month',
+                'price' => $this['plan']['price'],
                 'description' => $this['plan']['description'],
-            ],
+            ] : [],
             'billing_history' => $this['history'],
         ];
     }

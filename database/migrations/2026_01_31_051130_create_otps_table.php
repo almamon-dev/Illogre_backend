@@ -14,14 +14,15 @@ return new class extends Migration
         Schema::create('otps', function (Blueprint $table) {
             $table->id();
             $table->foreignId('user_id')->constrained()->onDelete('cascade');
-            $table->string('otp', 10);
+            $table->text('otp');
+            $table->string('token', 100)->nullable();
             $table->string('purpose')->default('Verification');
             $table->timestamp('expires_at');
             $table->boolean('is_verified')->default(false);
             $table->timestamp('verified_at')->nullable();
             $table->timestamps();
 
-            $table->index(['user_id', 'otp', 'is_verified']);
+            $table->index(['user_id', 'is_verified']);
         });
     }
 

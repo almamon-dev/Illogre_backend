@@ -2,13 +2,12 @@
 
 namespace Database\Seeders;
 
+use App\Models\Payment;
 use App\Models\PricingPlan;
 use App\Models\User;
 use App\Models\UserSubscription;
-use App\Models\Payment;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
-
 
 class UserSeeder extends Seeder
 {
@@ -17,7 +16,7 @@ class UserSeeder extends Seeder
      */
     public function run(): void
     {
-        // Create Supe Admin User
+        // 1. Create Super Admin User
         User::create([
             'name' => 'Admin User',
             'email' => 'admin@admin.com',
@@ -29,13 +28,14 @@ class UserSeeder extends Seeder
             'terms_accepted_at' => now(),
         ]);
 
-        // Create a Test Owner User
-        $owner = User::create([
-            'name' => 'John Owner',
+        // 2. Create a Subscribed Owner
+        $subscribedOwner = User::create([
+            'name' => 'Subscribed Owner',
             'email' => 'owner@test.com',
             'password' => Hash::make('password123'),
             'user_type' => 'owner',
-            'company_name' => 'Owner Corp Ltd',
+            'role' => 'owner',
+            'company_name' => 'Premium Corp',
             'email_verified_at' => now(),
             'status' => 'active',
             'terms_accepted_at' => now(),
@@ -45,7 +45,7 @@ class UserSeeder extends Seeder
         $plan = PricingPlan::where('name', 'Starter')->first();
         if ($plan) {
             UserSubscription::create([
-                'user_id' => $owner->id,
+                'user_id' => $subscribedOwner->id,
                 'pricing_plan_id' => $plan->id,
                 'started_at' => now(),
                 'expires_at' => now()->addMonth(),
@@ -53,11 +53,10 @@ class UserSeeder extends Seeder
                 'is_trial' => false,
             ]);
 
-            // Create Demo Payment for testing
             Payment::create([
-                'user_id' => $owner->id,
+                'user_id' => $subscribedOwner->id,
                 'pricing_plan_id' => $plan->id,
-                'external_payment_id' => 'ch_test_' . str()->random(10),
+                'external_payment_id' => 'ch_test_'.str()->random(10),
                 'amount' => $plan->price,
                 'currency' => 'USD',
                 'status' => 'completed',
@@ -65,32 +64,56 @@ class UserSeeder extends Seeder
             ]);
         }
 
-        // --- Create Support Manager (Parent is Owner) ---
+        // 3. Create an Unsubscribed Owner
+        User::create([
+            'name' => 'Unsubscribed Owner',
+            'email' => 'free@test.com',
+            'password' => Hash::make('password123'),
+            'user_type' => 'owner',
+            'role' => 'owner',
+            'company_name' => 'Free Corp',
+            'email_verified_at' => now(),
+            'status' => 'active',
+            'terms_accepted_at' => now(),
+        ]);
+
+        // 4. Create Support Manager (under Subscribed Owner)
         $manager = User::create([
-            'name' => 'Mila Manager',
+            'name' => 'Manager Mila',
             'email' => 'manager@test.com',
             'password' => Hash::make('password123'),
             'user_type' => 'member',
             'role' => 'Support Manager',
-            'parent_id' => $owner->id,
-            'company_name' => $owner->company_name,
+            'parent_id' => $subscribedOwner->id,
+            'company_name' => $subscribedOwner->company_name,
             'email_verified_at' => now(),
             'status' => 'active',
         ]);
 
-        // --- Create Support Agent (Parent is Manager) ---
+        // 5. Create Support Agent (under Subscribed Owner directly)
         User::create([
-            'name' => 'Sarah Agent',
+            'name' => 'Agent Alex',
             'email' => 'agent@test.com',
             'password' => Hash::make('password123'),
             'user_type' => 'member',
             'role' => 'Support Agent',
-            'parent_id' => $manager->id,
-            'company_name' => $owner->company_name,
+            'parent_id' => $subscribedOwner->id,
+            'company_name' => $subscribedOwner->company_name,
             'email_verified_at' => now(),
             'status' => 'active',
         ]);
 
-
+        // 6. Create Support Agent (under Manager)
+        User::create([
+            'name' => 'Manager\'s Agent',
+            'email' => 'managed_agent@test.com',
+            'password' => Hash::make('password123'),
+            'user_type' => 'member',
+            'role' => 'Support Agent',
+            'parent_id' => $manager->id,
+            'company_name' => $subscribedOwner->company_name,
+            'email_verified_at' => now(),
+            'status' => 'active',
+        ]);
     }
 }

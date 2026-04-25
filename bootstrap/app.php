@@ -1,6 +1,8 @@
 <?php
 
 use App\Http\Middleware\HandleInertiaRequests;
+use App\Http\Middleware\IsOwner;
+use App\Http\Middleware\CheckSubscription;
 use App\Http\Middleware\IsSupportAgent;
 use App\Http\Middleware\IsSupportManager;
 use App\Http\Middleware\UpdateUserActivity;
@@ -28,6 +30,8 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
 
         $middleware->alias([
+            'owner' => IsOwner::class,
+            'subscribed' => CheckSubscription::class,
             'support_manager' => IsSupportManager::class,
             'support_agent' => IsSupportAgent::class,
         ]);

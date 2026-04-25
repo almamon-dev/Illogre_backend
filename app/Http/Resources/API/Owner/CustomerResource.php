@@ -1,11 +1,11 @@
 <?php
 
-namespace App\Http\Resources\Owner;
+namespace App\Http\Resources\API\Owner;
 
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
-class TeamResource extends JsonResource
+class CustomerResource extends JsonResource
 {
     /**
      * Transform the resource into an array.
@@ -18,12 +18,12 @@ class TeamResource extends JsonResource
             'id' => $this->id,
             'name' => $this->name,
             'email' => $this->email,
-            'role' => $this->role ?? 'N/A',
+            'country' => $this->country,
+            'orders' => $this->total_orders ?? 0,
             'tickets' => $this->tickets_count ?? 0,
-            'resolved' => $this->resolved_tickets_count ?? 0,
+            'value' => '$'.number_format($this->total_spent, 2),
             'status' => $this->status,
-            'is_online' => $this->last_active_at && $this->last_active_at->gt(now()->subMinutes(5)),
-            'last_active' => $this->last_active_at ? $this->last_active_at->diffForHumans() : 'Never',
+            'last_active' => ($this->last_interaction_at ?: $this->created_at)->diffForHumans(),
         ];
     }
 }

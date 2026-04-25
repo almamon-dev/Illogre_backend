@@ -103,6 +103,14 @@ class User extends Authenticatable
     }
 
     /**
+     * Get the tickets for the user.
+     */
+    public function tickets()
+    {
+        return $this->hasMany(Ticket::class, 'owner_id');
+    }
+
+    /**
      * Helper to get a setting value.
      */
     public function getSetting($key, $default = null)
@@ -125,7 +133,43 @@ class User extends Authenticatable
      */
     public function isSubscribed()
     {
-        return $this->subscription()->exists();
+        if ($this->user_type === 'owner') {
+            return $this->subscription()
+                ->where('status', 'active')
+                ->where('expires_at', '>', now())
+                ->exists();
+        }
+
+        if ($this->user_type === 'member' && $this->parent_id) {
+            return $this->owner->isSubscribed();
+        }
+
+        return false;
+    }
+
+    /**
+     * Get the root owner ID for the team.
+     */
+    public function getTeamOwnerId()
+    {
+        if ($this->user_type === 'owner') {
+            return $this->id;
+        }
+
+        if ($this->parent_id) {
+            // If the parent is the owner, return parent_id
+            // Otherwise, we might need to go deeper, but for this app 
+            // usually it's Owner -> Manager -> Agent.
+            $parent = $this->owner;
+            if ($parent && $parent->user_type === 'owner') {
+                return $parent->id;
+            }
+            
+            // Recursive check if needed, but let's keep it simple for now
+            return $parent ? $parent->getTeamOwnerId() : $this->parent_id;
+        }
+
+        return $this->id;
     }
 
     /**

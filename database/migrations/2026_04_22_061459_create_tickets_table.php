@@ -15,6 +15,7 @@ return new class extends Migration
             $table->id();
             $table->string('ticket_number')->unique();
             $table->string('customer_name');
+            $table->string('customer_email')->nullable()->index();
             $table->string('customer_avatar')->nullable();
             $table->string('subject');
             $table->string('category')->nullable();
@@ -22,6 +23,7 @@ return new class extends Migration
             $table->integer('confidence')->default(0);
             $table->string('status')->default('Pending');
             $table->string('assigned')->default('AI Agent');
+            $table->foreignId('customer_id')->nullable()->constrained('customers')->onDelete('set null');
             $table->foreignId('owner_id')->constrained('users')->onDelete('cascade');
             $table->timestamps();
         });

@@ -30,7 +30,7 @@ return new class extends Migration
             $table->foreignId('pricing_plan_id')->constrained()->onDelete('cascade');
             $table->timestamp('started_at')->nullable();
             $table->timestamp('expires_at')->nullable();
-            $table->enum('status', ['active', 'expired', 'cancelled'])->default('active');
+            $table->enum('status', ['active', 'expired', 'cancelled', 'pending'])->default('active');
             $table->boolean('is_trial')->default(false);
             $table->timestamps();
         });

@@ -4,12 +4,10 @@ namespace App\Services;
 
 use App\Models\PricingPlan;
 use App\Models\User;
-use App\Models\UserSubscription;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Stripe\StripeClient;
-
 
 class RegistrationService
 {
@@ -34,6 +32,7 @@ class RegistrationService
                     'name' => $userData['name'],
                     'password' => $userData['password'], // Already hashed in Step 1
                     'user_type' => $userData['user_type'],
+                    'role' => $userData['role'] ?? null,
                     'company_name' => $userData['company_name'] ?? null,
                     'terms_accepted_at' => $userData['terms_accepted_at'] ?? null,
                     'email_verified_at' => now(),
@@ -42,16 +41,7 @@ class RegistrationService
                 ]
             );
 
-            // 2. Create pending subscription record
-            UserSubscription::updateOrCreate(
-                ['user_id' => $user->id],
-                [
-                    'pricing_plan_id' => $userData['plan_id'],
-                    'status' => 'pending',
-                ]
-            );
-
-            // 3. Cleanup
+            // 2. Cleanup
             Cache::forget("reg_{$cacheKey}");
 
             return $user;
@@ -71,7 +61,7 @@ class RegistrationService
                 'price_data' => [
                     'currency' => strtolower(config('services.stripe.currency', 'usd')),
                     'product_data' => [
-                        'name' => $plan->name . ' Plan Registration',
+                        'name' => $plan->name.' Plan Registration',
                     ],
                     'unit_amount' => $plan->price * 100,
                 ],
@@ -79,14 +69,12 @@ class RegistrationService
             ]],
             'mode' => 'payment',
             'customer_email' => $email,
-            'success_url' => config('services.stripe.success_url') . '?email=' . urlencode($email),
+            'success_url' => config('services.stripe.success_url').'?email='.urlencode($email),
             'cancel_url' => config('services.stripe.cancel_url'),
             'metadata' => [
                 'email' => $email,
-                'is_registration' => 'true'
-            ]
+                'is_registration' => 'true',
+            ],
         ]);
     }
-
-
 }

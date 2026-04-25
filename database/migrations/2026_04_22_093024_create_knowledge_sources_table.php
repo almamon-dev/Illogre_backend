@@ -21,6 +21,7 @@ return new class extends Migration
             $table->string('content_type')->nullable(); // pdf, docx, etc.
             $table->text('error_message')->nullable();
             $table->boolean('is_indexed')->default(false);
+            $table->longText('content')->nullable();
             $table->timestamps();
         });
     }

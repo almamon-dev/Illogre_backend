@@ -20,6 +20,7 @@ class Otp extends Model
     ];
 
     protected $casts = [
+        'otp' => 'encrypted',
         'expires_at' => 'datetime',
         'verified_at' => 'datetime',
         'is_verified' => 'boolean',
