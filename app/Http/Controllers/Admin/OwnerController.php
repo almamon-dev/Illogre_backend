@@ -12,7 +12,7 @@ class OwnerController extends Controller
     public function index(Request $request)
     {
         $owners = User::where('user_type', 'owner')
-            ->with(['subscription.plan'])
+            ->with(['subscription.pricingPlan'])
             ->latest()
             ->paginate(15);
 

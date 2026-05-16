@@ -7,10 +7,13 @@ use App\Http\Controllers\API\Manager\AgentController;
 use App\Http\Controllers\API\Owner\BillingController;
 use App\Http\Controllers\API\Owner\CustomerController;
 use App\Http\Controllers\API\Owner\DashboardController;
+use App\Http\Controllers\API\Owner\IntegrationApiController;
 use App\Http\Controllers\API\Owner\KnowledgeSourceApiController;
 use App\Http\Controllers\API\Owner\SettingsApiController;
+use App\Http\Controllers\API\Owner\ShopifyController;
 use App\Http\Controllers\API\Owner\TeamController;
 use App\Http\Controllers\API\PricingPlanApiController;
+use App\Http\Controllers\API\ShopifyWebhookController;
 use App\Http\Controllers\API\StripeWebhookController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -45,8 +48,15 @@ Route::prefix('auth')->group(function () {
     Route::get('/accept-agent-invitation', [AuthApiController::class, 'acceptAgentInvitation']);
 });
 
+// Inbound Email Webhook
+Route::post('/webhooks/inbound-email', [\App\Http\Controllers\API\InboundEmailController::class, 'handle']);
+
 // Stripe Webhook
 Route::post('/webhooks/stripe', [StripeWebhookController::class, 'handle']);
+
+// Shopify Webhook
+Route::post('/webhooks/shopify/customers', [ShopifyWebhookController::class, 'handleCustomers'])->name('api.webhooks.shopify.customers');
+Route::post('/webhooks/shopify/orders', [ShopifyWebhookController::class, 'handleOrders'])->name('api.webhooks.shopify.orders');
 
 // Protected Routes
 Route::middleware('auth:sanctum')->group(function () {
@@ -89,6 +99,13 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::post('/', [KnowledgeSourceApiController::class, 'store']);
             Route::delete('/{knowledgeSource}', [KnowledgeSourceApiController::class, 'destroy']);
         });
+
+        // Integrations (Requires Subscription)
+        Route::prefix('integrations')->middleware(['subscribed'])->group(function () {
+            Route::get('/', [IntegrationApiController::class, 'index']);
+            Route::post('/{provider}/connect', [IntegrationApiController::class, 'connect']);
+            Route::delete('/{id}', [IntegrationApiController::class, 'disconnect']);
+        });
     });
 
     // Admin Routes
@@ -106,7 +123,7 @@ Route::middleware('auth:sanctum')->group(function () {
     // Support Agent Routes
     Route::prefix('agent')->middleware(['support_agent', 'subscribed'])->group(function () {
         Route::get('/tickets', [TicketController::class, 'index']);
-        
+
         // Agent Customer Access
         Route::get('/customers', [CustomerController::class, 'index']);
         Route::get('/customers/{id}', [CustomerController::class, 'show']);

@@ -5,15 +5,33 @@ use App\Http\Controllers\Admin\OwnerController;
 use App\Http\Controllers\Admin\PricingPlanController;
 use App\Http\Controllers\Admin\SettingController;
 use App\Http\Controllers\Admin\TransactionController;
+use App\Http\Controllers\API\Owner\ShopifyController;
 use App\Http\Controllers\ProfileController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
-Route::get('/dashboard', [DashboardController::class, 'index'])
-    ->middleware(['auth', 'verified'])
-    ->name('dashboard');
+Route::middleware(['auth', 'verified'])->group(function () {
+    Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+    Route::get('/owner/test-shopify', [\App\Http\Controllers\Owner\TestIntegrationController::class, 'index'])->name('owner.test-shopify');
+    Route::get('/owner/shopify/customers', [\App\Http\Controllers\Owner\TestIntegrationController::class, 'listCustomers']);
+    
+    // Shopify OAuth Routes
+    Route::get('/owner/shopify/install', [\App\Http\Controllers\API\Owner\IntegrationApiController::class, 'shopifyInstall'])->name('owner.shopify.install');
+    Route::get('/owner/shopify/callback', [\App\Http\Controllers\API\Owner\IntegrationApiController::class, 'shopifyCallback'])->name('owner.shopify.callback');
+    
+    // Add this line for session-based connect (for test page)
+    Route::post('/owner/integrations/{provider}/connect', [\App\Http\Controllers\API\Owner\IntegrationApiController::class, 'connect']);
+});
+
+Route::get('/shopify/install', [ShopifyController::class, 'install'])
+    ->name('shopify.install')
+    ->middleware('signed');
+
+Route::get('/shopify/callback', [ShopifyController::class, 'callback'])
+    ->name('shopify.callback');
 
 Route::middleware('auth')->group(function () {
+
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
@@ -23,8 +41,8 @@ Route::middleware('auth')->group(function () {
         // Owner Management
         Route::get('owners', [OwnerController::class, 'index'])->name('owners.index');
         // Transaction Management
-        Route::get('transactions', [App\Http\Controllers\Admin\TransactionController::class, 'index'])->name('transactions.index');
-        Route::get('transactions/{transaction}', [App\Http\Controllers\Admin\TransactionController::class, 'show'])->name('transactions.show');
+        Route::get('transactions', [TransactionController::class, 'index'])->name('transactions.index');
+        Route::get('transactions/{transaction}', [TransactionController::class, 'show'])->name('transactions.show');
 
         // Pricing Plans Management
         Route::resource('pricing-plans', PricingPlanController::class);

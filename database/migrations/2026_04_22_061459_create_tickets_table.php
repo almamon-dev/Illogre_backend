@@ -22,6 +22,7 @@ return new class extends Migration
             $table->string('source')->default('Chat');
             $table->integer('confidence')->default(0);
             $table->string('status')->default('Pending');
+            $table->string('priority')->default('Medium');
             $table->string('assigned')->default('AI Agent');
             $table->foreignId('customer_id')->nullable()->constrained('customers')->onDelete('set null');
             $table->foreignId('owner_id')->constrained('users')->onDelete('cascade');

@@ -34,7 +34,7 @@ class ManagerService
         $password = $data['temporary_password'];
 
         $invitationData = [
-            'name' => $data['name'],
+            'name' => $data['name'] ?? 'Support Agent',
             'email' => $data['email'],
             'password' => $password, // Store plain password to hash later or hash now
             'parent_id' => $managerId,
@@ -131,7 +131,7 @@ class ManagerService
             ->firstOrFail();
 
         $agent->update([
-            'name' => $data['name'] ?? $agent->name,
+            'email' => $data['email'] ?? $agent->email,
             'role' => $data['role'] ?? $agent->role,
         ]);
 

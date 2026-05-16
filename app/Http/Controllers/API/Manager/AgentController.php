@@ -4,6 +4,7 @@ namespace App\Http\Controllers\API\Manager;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\API\Manager\StoreAgentRequest;
+use App\Http\Requests\API\Manager\UpdateAgentRequest;
 use App\Http\Resources\API\Manager\AgentResource;
 use App\Services\Manager\ManagerService;
 use App\Traits\ApiResponse;
@@ -31,7 +32,7 @@ class AgentController extends Controller
 
             return $this->sendResponse([
                 'stats' => $data['stats'],
-                'agents' => AgentResource::collection($data['agents']),
+                'members' => AgentResource::collection($data['agents']),
             ], 'Dashboard data fetched successfully.');
         } catch (Exception $e) {
             return $this->sendError('Failed to fetch agents.', [$e->getMessage()]);
@@ -58,7 +59,7 @@ class AgentController extends Controller
     /**
      * Update an existing Support Agent.
      */
-    public function update(Request $request, $id): JsonResponse
+    public function update(UpdateAgentRequest $request, $id): JsonResponse
     {
         try {
             $agent = $this->managerService->updateAgent($id, $request->all(), auth()->id());

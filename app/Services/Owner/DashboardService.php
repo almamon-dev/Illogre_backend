@@ -2,18 +2,70 @@
 
 namespace App\Services\Owner;
 
+use App\Models\Order;
+use App\Models\Ticket;
+use Illuminate\Support\Facades\Auth;
+
 class DashboardService
 {
     public function getOverviewData(): array
     {
+        $ownerId = Auth::user()->getTeamOwnerId();
+
+        // 1. Fetch Real Stats
+        $totalTickets = Ticket::where('owner_id', $ownerId)->count();
+        $aiResolved = Ticket::where('owner_id', $ownerId)->where('status', 'Resolved')->where('assigned', 'AI Agent')->count();
+        $waitingApproval = Ticket::where('owner_id', $ownerId)->where('status', 'Pending')->count();
+
+        // 2. Fetch Recent Tickets with Customer and Orders
+        $recentTickets = Ticket::where('owner_id', $ownerId)
+            ->with(['customer'])
+            ->orderBy('created_at', 'desc')
+            ->limit(10)
+            ->get()
+            ->map(function ($ticket) use ($ownerId) {
+                // Fetch recent orders for this customer to show in UI context
+                $orders = [];
+                if ($ticket->customer_id) {
+                    $orders = Order::where('customer_id', $ticket->customer_id)
+                        ->where('owner_id', $ownerId)
+                        ->orderBy('shopify_created_at', 'desc')
+                        ->limit(2)
+                        ->get()
+                        ->map(function($order) {
+                            return [
+                                'order_number' => $order->order_number,
+                                'total' => $order->total_price . ' ' . $order->currency,
+                                'status' => $order->financial_status,
+                                'fulfillment' => $order->fulfillment_status,
+                            ];
+                        });
+                }
+
+                return [
+                    'ticket_id' => $ticket->ticket_number,
+                    'customer' => [
+                        'name' => $ticket->customer_name,
+                        'email' => $ticket->customer_email,
+                        'avatar' => $ticket->customer_avatar,
+                    ],
+                    'subject' => $ticket->subject,
+                    'source' => $ticket->source,
+                    'confidence' => $ticket->confidence,
+                    'status' => $ticket->status,
+                    'assigned' => $ticket->assigned,
+                    'updated' => $ticket->updated_at->diffForHumans(),
+                    'recent_orders' => $orders, // This is the new part!
+                ];
+            });
 
         return [
             'stats' => [
-                'total_tickets' => 1234,
-                'ai_resolved' => 892,
-                'waiting_approval' => 156,
-                'success_rate' => 1234,
-                'time_saved' => 42,
+                'total_tickets' => $totalTickets,
+                'ai_resolved' => $aiResolved,
+                'waiting_approval' => $waitingApproval,
+                'success_rate' => $totalTickets > 0 ? round(($aiResolved / $totalTickets) * 100, 1) : 0,
+                'time_saved' => $aiResolved * 0.5, // Mock: 30 mins per AI resolved ticket
             ],
             'charts' => [
                 'ticket_volume' => [
@@ -32,58 +84,7 @@ class DashboardService
                     ['week' => 'Week 4', 'resolved' => 280, 'total' => 450],
                 ],
             ],
-            'recent_tickets' => [
-                [
-                    'ticket_id' => 'ORD-10024',
-                    'customer' => ['name' => 'Sarah', 'avatar' => null],
-                    'subject' => 'Where is my order?',
-                    'source' => 'Chat',
-                    'confidence' => 82,
-                    'status' => 'Resolved',
-                    'assigned' => 'AI Agent',
-                    'updated' => '10 min ago',
-                ],
-                [
-                    'ticket_id' => 'ORD-10025',
-                    'customer' => ['name' => 'Sarah', 'avatar' => null],
-                    'subject' => 'Where is my order?',
-                    'source' => 'Shopify',
-                    'confidence' => 95,
-                    'status' => 'Resolved',
-                    'assigned' => 'AI Agent',
-                    'updated' => '10 min ago',
-                ],
-                [
-                    'ticket_id' => 'ORD-10026',
-                    'customer' => ['name' => 'Sarah', 'avatar' => null],
-                    'subject' => 'Where is my order?',
-                    'source' => 'Email',
-                    'confidence' => 42,
-                    'status' => 'Resolved',
-                    'assigned' => 'AI Agent',
-                    'updated' => '10 min ago',
-                ],
-                [
-                    'ticket_id' => 'ORD-10027',
-                    'customer' => ['name' => 'Sarah', 'avatar' => null],
-                    'subject' => 'Where is my order?',
-                    'source' => 'Chat',
-                    'confidence' => 0,
-                    'status' => 'Pending',
-                    'assigned' => 'AI Agent',
-                    'updated' => '10 min ago',
-                ],
-                [
-                    'ticket_id' => 'ORD-10028',
-                    'customer' => ['name' => 'Sarah', 'avatar' => null],
-                    'subject' => 'Where is my order?',
-                    'source' => 'Resolved',
-                    'confidence' => 15,
-                    'status' => 'Resolved',
-                    'assigned' => 'AI Agent',
-                    'updated' => '10 min ago',
-                ],
-            ],
+            'recent_tickets' => $recentTickets,
         ];
     }
 }

@@ -1,11 +1,11 @@
 <?php
 
-namespace App\Http\Requests\API\Owner;
+namespace App\Http\Requests\API\Manager;
 
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 
-class InviteTeamMemberRequest extends FormRequest
+class UpdateAgentRequest extends FormRequest
 {
     /**
      * Determine if the user is authorized to make this request.
@@ -23,9 +23,7 @@ class InviteTeamMemberRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'email' => 'required|email|unique:users,email',
-            'password' => 'required|string|min:8',
-            'role' => 'required|string|in:Support Manager,Support Agent',
+            'role' => 'required|string|in:Support Agent',
         ];
     }
 }

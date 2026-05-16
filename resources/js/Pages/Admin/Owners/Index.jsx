@@ -93,7 +93,7 @@ export default function Index({ owners, auth }) {
                                             <td className="px-5 py-5">
                                                 <span className="inline-flex items-center px-3 py-1 bg-[#f4f0ff] text-[#673ab7] rounded-full text-[11px] font-bold border border-[#dcd0ff]">
                                                     <Zap size={12} className="mr-1" />
-                                                    {owner.subscription?.plan?.name || 'No Plan'}
+                                                    {owner.subscription?.pricing_plan?.name || 'No Plan'}
                                                 </span>
                                             </td>
                                             <td className="px-5 py-5">

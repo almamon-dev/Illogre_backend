@@ -6,6 +6,8 @@ use App\Models\Setting;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Vite;
 use Illuminate\Support\ServiceProvider;
+use Shopify\Auth\FileSessionStorage;
+use Shopify\Context;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -23,6 +25,19 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         Vite::prefetch(concurrency: 3);
+
+        if (config('shopify.api_key')) {
+            Context::initialize(
+                apiKey: config('shopify.api_key'),
+                apiSecretKey: config('shopify.api_secret'),
+                scopes: config('shopify.scopes'),
+                hostName: str_replace(['http://', 'https://'], '', config('shopify.app_host') ?? ''),
+                sessionStorage: new FileSessionStorage(storage_path('framework/sessions')),
+                apiVersion: '2024-04',
+                isEmbeddedApp: true,
+                isPrivateApp: false,
+            );
+        }
 
         // Override Config from Database
         try {

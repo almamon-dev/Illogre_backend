@@ -56,7 +56,7 @@ export default function Show({ transaction, auth }) {
                                     <div className="flex justify-between items-center py-2 border-b border-[#f1f2f4]">
                                         <span className="text-[13px] text-[#727586] font-medium">Plan Purchased</span>
                                         <span className="inline-flex items-center px-2.5 py-1 rounded bg-[#f4f0ff] text-[#673ab7] font-bold text-[11px] uppercase border border-[#dcd0ff]">
-                                            <Zap size={12} className="mr-1" /> {transaction.plan?.name || 'Manual'}
+                                            <Zap size={12} className="mr-1" /> {transaction.pricing_plan?.name || 'Manual'}
                                         </span>
                                     </div>
                                     <div className="flex justify-between items-center py-2 border-b border-[#f1f2f4]">

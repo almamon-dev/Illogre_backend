@@ -11,7 +11,7 @@ class TransactionController extends Controller
 {
     public function index(Request $request)
     {
-        $transactions = Payment::with(['user', 'plan'])
+        $transactions = Payment::with(['user', 'pricingPlan'])
             ->latest()
             ->paginate(15);
 
@@ -27,7 +27,7 @@ class TransactionController extends Controller
 
     public function show(\App\Models\Payment $transaction)
     {
-        $transaction->load(['user', 'plan']);
+        $transaction->load(['user', 'pricingPlan']);
 
         return Inertia::render('Admin/Transactions/Show', [
             'transaction' => $transaction

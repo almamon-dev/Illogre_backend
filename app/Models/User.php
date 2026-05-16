@@ -111,6 +111,14 @@ class User extends Authenticatable
     }
 
     /**
+     * Get the integrations for the user.
+     */
+    public function integrations()
+    {
+        return $this->hasMany(Integration::class);
+    }
+
+    /**
      * Helper to get a setting value.
      */
     public function getSetting($key, $default = null)

@@ -1,0 +1,28 @@
+client_id = "f29bb35ff0492ae79c257a12bc303cb4"
+name = "Tixolve"
+handle = "tixolve"
+application_url = "https://illo.thesyndicates.team/"
+embedded = true
+
+[build]
+automatically_update_urls_on_dev = true
+
+[access_scopes]
+scopes = "read_products,read_orders,read_customers"
+
+[auth]
+redirect_urls = [
+  "https://illo.thesyndicates.team/auth/callback",
+  "https://illo.thesyndicates.team/auth/shopify/callback",
+  "https://illo.thesyndicates.team/shopify/callback"
+]
+
+[webhooks]
+api_version = "2024-04"
+
+[[webhooks.subscriptions]]
+topics = [ "customers/create", "customers/update" ]
+uri = "https://illo.thesyndicates.team/api/webhooks/shopify/customers"
+
+[pos]
+embedded = false

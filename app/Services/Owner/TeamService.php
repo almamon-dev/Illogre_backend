@@ -2,11 +2,11 @@
 
 namespace App\Services\Owner;
 
-use App\Models\User;
 use App\Mail\TeamInvitationMail;
+use App\Models\Ticket;
+use App\Models\User;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
-use Illuminate\Support\Str;
 
 class TeamService
 {
@@ -15,19 +15,19 @@ class TeamService
      */
     public function getTeamData($ownerId): array
     {
-        $owner = User::with(['members' => function($query) {
+        $owner = User::with(['members' => function ($query) {
             $query->withCount([
                 'tickets',
                 'tickets as resolved_tickets_count' => function ($query) {
                     $query->where('status', 'Resolved');
-                }
+                },
             ])->latest();
         }])->findOrFail($ownerId);
 
         $members = $owner->members;
 
         // Calculate total resolved for the whole team
-        $ownerResolvedCount = \App\Models\Ticket::where('owner_id', $ownerId)->where('status', 'Resolved')->count();
+        $ownerResolvedCount = Ticket::where('owner_id', $ownerId)->where('status', 'Resolved')->count();
         $teamResolvedCount = $members->sum('resolved_tickets_count') + $ownerResolvedCount;
 
         return [
@@ -38,7 +38,7 @@ class TeamService
                 })->count(),
                 'total_resolved' => $teamResolvedCount,
             ],
-            'members' => $members
+            'members' => $members,
         ];
     }
 
@@ -48,13 +48,13 @@ class TeamService
     public function inviteMember(array $data, $ownerId)
     {
         $billingService = app(BillingService::class);
-        if (!$billingService->checkLimit('member_limit', $ownerId)) {
+        if (! $billingService->checkLimit('member_limit', $ownerId)) {
             throw new \Exception('Team member limit reached for your current plan. Please upgrade to add more members.');
         }
 
         $name = 'Team Member'; // Default name until they update profile
         $password = $data['password'];
-        
+
         $user = User::create([
             'parent_id' => $ownerId,
             'name' => $name,

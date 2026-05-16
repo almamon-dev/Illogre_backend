@@ -92,7 +92,7 @@ export default function Index({ transactions, stats, auth }) {
                                                 <div className="text-[14px] font-bold text-[#2f3344]">{tx.user?.name}</div>
                                                 <span className="inline-flex items-center px-2.5 py-0.5 bg-[#f4f0ff] text-[#673ab7] rounded-full text-[10px] font-bold border border-[#dcd0ff] mt-1 uppercase">
                                                     <Zap size={10} className="mr-1" />
-                                                    {tx.plan?.name || 'Manual'}
+                                                    {tx.pricing_plan?.name || 'Manual'}
                                                 </span>
                                             </td>
 
