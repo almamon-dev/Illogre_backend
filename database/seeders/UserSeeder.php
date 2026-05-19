@@ -5,6 +5,7 @@ namespace Database\Seeders;
 use App\Models\Payment;
 use App\Models\PricingPlan;
 use App\Models\User;
+use App\Models\UserSetting;
 use App\Models\UserSubscription;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
@@ -39,6 +40,13 @@ class UserSeeder extends Seeder
             'email_verified_at' => now(),
             'status' => 'active',
             'terms_accepted_at' => now(),
+        ]);
+
+        // Seed default support email setting
+        UserSetting::create([
+            'user_id' => $subscribedOwner->id,
+            'key' => 'support_email',
+            'value' => 'mamon193p@gmail.com',
         ]);
 
         // Create Subscription for Owner

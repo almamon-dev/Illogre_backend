@@ -41,7 +41,7 @@ const Test = ({ integrations }) => {
                 </div>
 
                 <div style={{ backgroundColor: '#161b22', borderRadius: '24px', padding: '40px', border: '1px solid #30363d', boxShadow: '0 20px 50px rgba(0,0,0,0.3)' }}>
-                    
+
                     {/* Redirect URL Info Section */}
                     <div style={{ marginBottom: '30px', backgroundColor: 'rgba(255, 193, 7, 0.05)', padding: '20px', borderRadius: '16px', border: '1px solid rgba(255, 193, 7, 0.2)' }}>
                         <h4 style={{ margin: '0 0 10px 0', color: '#ffc107', fontSize: '14px', fontWeight: 'bold', textTransform: 'uppercase' }}>
@@ -152,11 +152,11 @@ const Test = ({ integrations }) => {
                         )}
                     </div>
                 </div>
-                
+
                 {integrations.some(i => i.status === 'connected') && (
                     <div style={{ marginTop: '30px', textAlign: 'center' }}>
-                        <a 
-                            href="/owner/shopify/customers" 
+                        <a
+                            href="/owner/shopify/customers"
                             style={{ color: '#60a5fa', textDecoration: 'none', fontWeight: 'bold', border: '1px solid #60a5fa', padding: '10px 20px', borderRadius: '12px' }}
                         >
                             View Fetched Customers

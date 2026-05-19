@@ -4,6 +4,7 @@ namespace App\Services\Owner;
 
 use App\Models\Customer;
 use App\Models\Ticket;
+use App\Models\Order;
 use Illuminate\Support\Facades\DB;
 
 class CustomerService
@@ -34,13 +35,19 @@ class CustomerService
             ->latest()
             ->get();
 
+        // Get actual order history
+        $orders = Order::where('customer_id', $customer->id)
+            ->where('owner_id', $ownerId)
+            ->latest()
+            ->get();
+
         return [
             'customer' => $customer,
             'tickets' => [
                 'open' => $tickets->whereIn('status', ['Pending', 'Open', 'In Progress']),
                 'closed' => $tickets->whereIn('status', ['Resolved', 'Closed']),
             ],
-            'order_history' => [], // Placeholder for Shopify integration
+            'order_history' => $orders,
         ];
     }
 

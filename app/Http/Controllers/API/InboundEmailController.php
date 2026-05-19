@@ -8,6 +8,7 @@ use App\Models\Customer;
 use App\Models\Order;
 use App\Models\Ticket;
 use App\Models\User;
+use App\Models\UserSetting;
 use Illuminate\Support\Facades\Log;
 
 class InboundEmailController extends Controller
@@ -24,41 +25,73 @@ class InboundEmailController extends Controller
         $toEmail = $payload['to'] ?? $payload['To'] ?? null;
         $subject = $payload['subject'] ?? $payload['Subject'] ?? 'No Subject';
         $body = $payload['body'] ?? $payload['TextBody'] ?? '';
+        $source = $payload['source'] ?? $payload['channel'] ?? $payload['Source'] ?? 'Email';
 
         if (!$fromEmail) {
             return response()->json(['error' => 'Sender email missing'], 400);
         }
 
-        Log::info("Inbound Email Received: From {$fromEmail} to {$toEmail}");
+        Log::info("Inbound Message Received: From {$fromEmail} to {$toEmail} via {$source}");
 
-        // 1. Identify the Owner (Business)
-        // In a real app, you'd match $toEmail to a specific workspace/owner.
-        // For this demo, we'll try to find any owner who has a customer with this email.
-        $customer = Customer::where('email', $fromEmail)->first();
-
-        if (!$customer) {
-            Log::info("Customer not found for email: {$fromEmail}. Creating a new record or handling as guest.");
-            // We'll skip order matching if customer doesn't exist
-            return $this->createTicket($fromEmail, $subject, $body, null, null, $fromEmail);
+        // 1. Identify the Owner (Business) based on support_email setting
+        $ownerId = null;
+        if ($toEmail) {
+            $setting = UserSetting::where('key', 'support_email')
+                ->where('value', $toEmail)
+                ->first();
+            if ($setting) {
+                $ownerId = $setting->user_id;
+            }
         }
 
-        $ownerId = $customer->owner_id;
+        // Fallback: match by sender's customer record owner
+        if (!$ownerId) {
+            $customer = Customer::where('email', $fromEmail)->first();
+            if ($customer) {
+                $ownerId = $customer->owner_id;
+            }
+        }
 
-        // 2. Load Related Orders
+        // Final Fallback: use first owner
+        if (!$ownerId) {
+            $ownerId = User::where('user_type', 'owner')->first()?->id;
+        }
+
+        // 2. Find or create Customer under this Owner
+        $customer = Customer::where('email', $fromEmail)
+            ->where('owner_id', $ownerId)
+            ->first();
+
+        if (!$customer) {
+            Log::info("Customer not found for email: {$fromEmail} under owner: {$ownerId}. Auto-creating customer.");
+            
+            // Extract display name or use prefix of email
+            $namePart = explode('@', $fromEmail)[0];
+            $customerName = ucfirst(str_replace(['.', '_', '-'], ' ', $namePart));
+
+            $customer = Customer::create([
+                'email' => $fromEmail,
+                'name' => $customerName,
+                'owner_id' => $ownerId,
+                'status' => 'New',
+            ]);
+        }
+
+        // 3. Load Related Orders
         $recentOrders = Order::where('customer_id', $customer->id)
             ->where('owner_id', $ownerId)
             ->orderBy('shopify_created_at', 'desc')
             ->limit(3)
             ->get();
 
-        // 3. Create Ticket with Context
-        return $this->createTicket($customer->name, $subject, $body, $ownerId, $recentOrders, $customer->email, $customer->id);
+        // 4. Create Ticket with Context
+        return $this->createTicket($customer->name, $subject, $body, $ownerId, $recentOrders, $customer->email, $customer->id, $source);
     }
 
     /**
      * Create a ticket in the system
      */
-    private function createTicket($customerName, $subject, $body, $ownerId, $orders = null, $customerEmail = null, $customerId = null)
+    private function createTicket($customerName, $subject, $body, $ownerId, $orders = null, $customerEmail = null, $customerId = null, $source = 'Email')
     {
         // If no owner found, we default to the first owner for demo purposes
         if (!$ownerId) {
@@ -71,8 +104,9 @@ class InboundEmailController extends Controller
             'customer_email' => $customerEmail,
             'customer_id' => $customerId,
             'subject' => $subject,
+            'body' => $body,
             'category' => 'Inquiry',
-            'source' => 'Email',
+            'source' => $source,
             'confidence' => $orders && $orders->count() > 0 ? 90 : 40,
             'status' => 'Pending',
             'assigned' => 'AI Agent',

@@ -1,20 +1,22 @@
-client_id = "f29bb35ff0492ae79c257a12bc303cb4"
+client_id = "af105625e2693cdb079596a581b1c15b"
 name = "Tixolve"
 handle = "tixolve"
-application_url = "https://illo.thesyndicates.team/"
+application_url = "https://illogre-next-frontend.vercel.app/"
 embedded = true
 
 [build]
 automatically_update_urls_on_dev = true
 
 [access_scopes]
-scopes = "read_products,read_orders,read_customers"
+scopes = "read_products,write_products,read_orders,write_orders,read_customers,write_customers"
 
 [auth]
 redirect_urls = [
   "https://illo.thesyndicates.team/auth/callback",
   "https://illo.thesyndicates.team/auth/shopify/callback",
-  "https://illo.thesyndicates.team/shopify/callback"
+  "https://illo.thesyndicates.team/shopify/callback",
+  "https://illo.thesyndicates.team/owner/shopify/callback",
+  "https://illo.thesyndicates.team/api/owner/shopify/callback"
 ]
 
 [webhooks]

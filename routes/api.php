@@ -18,6 +18,7 @@ use App\Http\Controllers\API\StripeWebhookController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
+
 Route::get('/user', function (Request $request) {
     return $request->user();
 })->middleware('auth:sanctum');
@@ -57,6 +58,9 @@ Route::post('/webhooks/stripe', [StripeWebhookController::class, 'handle']);
 // Shopify Webhook
 Route::post('/webhooks/shopify/customers', [ShopifyWebhookController::class, 'handleCustomers'])->name('api.webhooks.shopify.customers');
 Route::post('/webhooks/shopify/orders', [ShopifyWebhookController::class, 'handleOrders'])->name('api.webhooks.shopify.orders');
+
+// Shopify OAuth Callback (Public route for Shopify to redirect to)
+Route::get('/owner/shopify/callback', [\App\Http\Controllers\API\Owner\IntegrationApiController::class, 'shopifyCallback'])->name('api.owner.shopify.callback');
 
 // Protected Routes
 Route::middleware('auth:sanctum')->group(function () {
@@ -100,9 +104,13 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::delete('/{knowledgeSource}', [KnowledgeSourceApiController::class, 'destroy']);
         });
 
+        // Get Shopify Install URL (Requires Auth)
+        Route::post('/shopify/install', [IntegrationApiController::class, 'shopifyInstall'])->middleware(['subscribed']);
+
         // Integrations (Requires Subscription)
         Route::prefix('integrations')->middleware(['subscribed'])->group(function () {
             Route::get('/', [IntegrationApiController::class, 'index']);
+            Route::post('/connect', [IntegrationApiController::class, 'connect']);
             Route::post('/{provider}/connect', [IntegrationApiController::class, 'connect']);
             Route::delete('/{id}', [IntegrationApiController::class, 'disconnect']);
         });
@@ -123,6 +131,7 @@ Route::middleware('auth:sanctum')->group(function () {
     // Support Agent Routes
     Route::prefix('agent')->middleware(['support_agent', 'subscribed'])->group(function () {
         Route::get('/tickets', [TicketController::class, 'index']);
+        Route::get('/tickets/{id}', [TicketController::class, 'show']);
 
         // Agent Customer Access
         Route::get('/customers', [CustomerController::class, 'index']);

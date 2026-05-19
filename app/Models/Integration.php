@@ -21,6 +21,12 @@ class Integration extends Model
         'last_synced_at',
     ];
 
+    protected $hidden = [
+        'access_token',
+        'refresh_token',
+        'expires_at',
+    ];
+
     protected $casts = [
         'access_token' => 'encrypted',
         'settings' => 'encrypted:array',
@@ -34,5 +40,17 @@ class Integration extends Model
     public function user()
     {
         return $this->belongsTo(User::class);
+    }
+
+    /**
+     * Override toArray to ensure settings is always serialized as an object, not array.
+     */
+    public function toArray()
+    {
+        $array = parent::toArray();
+        if (array_key_exists('settings', $array) && empty($array['settings'])) {
+            $array['settings'] = (object)[];
+        }
+        return $array;
     }
 }

@@ -33,4 +33,30 @@ class ShopifyService
 
         return $response->json()['customers'] ?? [];
     }
+
+    /**
+     * Get orders from Shopify.
+     */
+    public function getOrders(Integration $integration)
+    {
+        $shop = $integration->settings['shop_domain'] ?? $integration->provider_id;
+        $accessToken = $integration->access_token;
+
+        if (!$shop || !$accessToken) {
+            throw new Exception("Shopify credentials missing for this integration.");
+        }
+
+        // Shopify Admin API URL
+        $url = "https://{$shop}/admin/api/2024-04/orders.json?status=any";
+
+        $response = Http::withHeaders([
+            'X-Shopify-Access-Token' => $accessToken,
+        ])->get($url);
+
+        if ($response->failed()) {
+            throw new Exception("Shopify API error: " . $response->body());
+        }
+
+        return $response->json()['orders'] ?? [];
+    }
 }

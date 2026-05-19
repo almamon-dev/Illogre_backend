@@ -15,9 +15,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/owner/test-shopify', [\App\Http\Controllers\Owner\TestIntegrationController::class, 'index'])->name('owner.test-shopify');
     Route::get('/owner/shopify/customers', [\App\Http\Controllers\Owner\TestIntegrationController::class, 'listCustomers']);
     
-    // Shopify OAuth Routes
-    Route::get('/owner/shopify/install', [\App\Http\Controllers\API\Owner\IntegrationApiController::class, 'shopifyInstall'])->name('owner.shopify.install');
-    Route::get('/owner/shopify/callback', [\App\Http\Controllers\API\Owner\IntegrationApiController::class, 'shopifyCallback'])->name('owner.shopify.callback');
+    // Shopify OAuth Routes removed from web.php
     
     // Add this line for session-based connect (for test page)
     Route::post('/owner/integrations/{provider}/connect', [\App\Http\Controllers\API\Owner\IntegrationApiController::class, 'connect']);
