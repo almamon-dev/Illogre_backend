@@ -59,10 +59,12 @@ class FetchEmails extends Command
             $this->info("Connected successfully!");
 
             // Get INBOX folder
+            $this->info("Accessing INBOX folder...");
             $folder = $client->getFolder('INBOX');
             
-            // Get all unread messages
-            $messages = $folder->query()->unseen()->get();
+            // Get all unread messages, limited to 5 to prevent performance hangs on large mailboxes
+            $this->info("Querying unseen messages (limit 5)...");
+            $messages = $folder->query()->unseen()->limit(5)->get();
             $count = $messages->count();
 
             $this->info("Found {$count} unread emails.");
