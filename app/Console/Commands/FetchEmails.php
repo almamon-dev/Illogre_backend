@@ -27,126 +27,154 @@ class FetchEmails extends Command
      */
     protected $description = 'Fetch unread emails from configured IMAP account and create support tickets';
 
-    /**
-     * Execute the console command.
-     */
     public function handle()
     {
-        $host = env('IMAP_HOST');
-        $username = env('IMAP_USERNAME');
-        $password = env('IMAP_PASSWORD');
+        $accounts = [];
 
-        if (!$host || !$username || !$password) {
-            $this->error("IMAP configuration is incomplete in .env file.");
-            return Command::FAILURE;
-        }
-
-        $this->info("Connecting to IMAP host: {$host} as {$username}...");
-
+        // 1. Load from database integrations (Multi-tenant)
         try {
-            $cm = new ClientManager();
-            $client = $cm->make([
-                'host'          => $host,
-                'port'          => env('IMAP_PORT', 993),
-                'encryption'    => env('IMAP_ENCRYPTION', 'ssl'),
-                'validate_cert' => true,
-                'username'      => $username,
-                'password'      => $password,
-                'protocol'      => 'imap'
-            ]);
-
-            $client->connect();
-            $this->info("Connected successfully!");
-
-            // Get INBOX folder
-            $this->info("Accessing INBOX folder...");
-            $folder = $client->getFolder('INBOX');
-            
-            // Fetch the latest 10 messages directly from INBOX (avoids slow search queries)
-            $this->info("Fetching the latest 10 messages from INBOX...");
-            $messages = $folder->query()
-                ->leaveUnread()
-                ->setFetchOrder('desc')
-                ->limit(10)
+            $dbIntegrations = \App\Models\Integration::whereIn('provider', ['gmail', 'outlook'])
+                ->where('status', 'connected')
                 ->get();
-            
-            $count = $messages->count();
-            $this->info("Retrieved {$count} messages. Checking for unread (unseen) status...");
 
-            $processedCount = 0;
-            foreach ($messages as $message) {
-                // If the message has already been Seen (read), skip it
-                if ($message->getFlags()->has('Seen')) {
+            foreach ($dbIntegrations as $integration) {
+                $settings = $integration->settings ?? [];
+                
+                $defaultHost = $integration->provider === 'gmail' ? 'imap.gmail.com' : 'outlook.office365.com';
+                $password = $settings['imap_password'] ?? null;
+
+                if (!$password) {
                     continue;
                 }
 
-                $processedCount++;
-                $subject = $message->getSubject() ?? 'No Subject';
-                $fromArray = $message->getFrom();
-                
-                if (empty($fromArray)) {
-                    $this->warn("Skipping email: Sender email missing.");
-                    continue;
-                }
-                
-                $fromEmail = $fromArray[0]->mail;
-                $fromName = $fromArray[0]->personal ?? explode('@', $fromEmail)[0];
-                
-                $toArray = $message->getTo();
-                $toEmail = !empty($toArray) ? $toArray[0]->mail : $username;
-
-                // Get content body (prefer HTML, fallback to text)
-                $body = $message->hasHTMLBody() ? $message->getHTMLBody() : $message->getTextBody();
-                
-                // Process ticket generation
-                $this->processEmailAsTicket($fromEmail, $fromName, $toEmail, $subject, $body);
-
-                // Mark the message as read (Seen)
-                $message->setFlag('Seen');
+                $accounts[] = [
+                    'host'       => $settings['imap_host'] ?? $defaultHost,
+                    'port'       => $settings['imap_port'] ?? 993,
+                    'encryption' => $settings['imap_encryption'] ?? 'ssl',
+                    'username'   => $integration->provider_id, // Connected email address
+                    'password'   => $password,
+                    'owner_id'   => $integration->user_id,
+                    'source'     => 'database_integration'
+                ];
             }
-
-            $this->info("Processed {$processedCount} new unread emails.");
-
-            $client->disconnect();
-            $this->info("Finished processing emails.");
-            return Command::SUCCESS;
-
         } catch (\Exception $e) {
-            $this->error("Error fetching emails: " . $e->getMessage());
-            Log::error("FetchEmails command error: " . $e->getMessage());
-            return Command::FAILURE;
+            $this->error("Failed to load integrations from database: " . $e->getMessage());
+            Log::error("FetchEmails: DB integration load failed: " . $e->getMessage());
         }
+
+        if (empty($accounts)) {
+            $this->info("No IMAP accounts configured (either in .env or database).");
+            return Command::SUCCESS;
+        }
+
+        $cm = new ClientManager();
+
+        foreach ($accounts as $account) {
+            $this->info("--------------------------------------------------");
+            $this->info("Processing account: {$account['username']} (Source: {$account['source']}, Owner ID: {$account['owner_id']})");
+
+            try {
+                $client = $cm->make([
+                    'host'          => $account['host'],
+                    'port'          => $account['port'],
+                    'encryption'    => $account['encryption'],
+                    'validate_cert' => true,
+                    'username'      => $account['username'],
+                    'password'      => $account['password'],
+                    'protocol'      => 'imap'
+                ]);
+
+                $client->connect();
+                $this->info("Connected successfully!");
+
+                // Get INBOX folder
+                $this->info("Accessing INBOX folder...");
+                $folder = $client->getFolder('INBOX');
+                
+                // Fetch the latest 10 messages directly from INBOX (avoids slow search queries)
+                $this->info("Fetching the latest 10 messages from INBOX...");
+                $messages = $folder->query()
+                    ->leaveUnread()
+                    ->setFetchOrder('desc')
+                    ->limit(10)
+                    ->get();
+                
+                $count = $messages->count();
+                $this->info("Retrieved {$count} messages. Checking for unread (unseen) status...");
+
+                $processedCount = 0;
+                foreach ($messages as $message) {
+                    // If the message has already been Seen (read), skip it
+                    if ($message->getFlags()->has('Seen')) {
+                        continue;
+                    }
+
+                    $processedCount++;
+                    $subject = $message->getSubject() ?? 'No Subject';
+                    $fromArray = $message->getFrom();
+                    
+                    if (empty($fromArray)) {
+                        $this->warn("Skipping email: Sender email missing.");
+                        continue;
+                    }
+                    
+                    $fromEmail = $fromArray[0]->mail;
+                    $fromName = $fromArray[0]->personal ?? explode('@', $fromEmail)[0];
+                    
+                    $toArray = $message->getTo();
+                    $toEmail = !empty($toArray) ? $toArray[0]->mail : $account['username'];
+
+                    // Get content body (prefer HTML, fallback to text)
+                    $body = $message->hasHTMLBody() ? $message->getHTMLBody() : $message->getTextBody();
+                    
+                    // Process ticket generation
+                    $this->processEmailAsTicket($fromEmail, $fromName, $toEmail, $subject, $body, $account['owner_id']);
+
+                    // Mark the message as read (Seen)
+                    $message->setFlag('Seen');
+                }
+
+                $this->info("Processed {$processedCount} new unread emails for {$account['username']}.");
+                $client->disconnect();
+
+            } catch (\Exception $e) {
+                $this->error("Error fetching emails for {$account['username']}: " . $e->getMessage());
+                Log::error("FetchEmails command error for {$account['username']}: " . $e->getMessage());
+            }
+        }
+
+        $this->info("Finished processing all email accounts.");
+        return Command::SUCCESS;
     }
 
     /**
      * Process the email content to find/create customer and create a ticket
      */
-    private function processEmailAsTicket($fromEmail, $fromName, $toEmail, $subject, $body)
+    private function processEmailAsTicket($fromEmail, $fromName, $toEmail, $subject, $body, $ownerId)
     {
-        Log::info("FetchEmails: Processing message from {$fromEmail} to {$toEmail}");
+        Log::info("FetchEmails: Processing message from {$fromEmail} to {$toEmail} for owner {$ownerId}");
 
-        // 1. Identify Owner
-        $ownerId = null;
-        if ($toEmail) {
-            $setting = UserSetting::where('key', 'support_email')
-                ->where('value', $toEmail)
-                ->first();
-            if ($setting) {
-                $ownerId = $setting->user_id;
-            }
-        }
-
-        // Fallback: match by sender's customer record owner
+        // If no owner ID was determined, try to find one
         if (!$ownerId) {
-            $customer = Customer::where('email', $fromEmail)->first();
-            if ($customer) {
-                $ownerId = $customer->owner_id;
+            if ($toEmail) {
+                $setting = UserSetting::where('key', 'support_email')
+                    ->where('value', $toEmail)
+                    ->first();
+                if ($setting) {
+                    $ownerId = $setting->user_id;
+                }
             }
-        }
+            
+            if (!$ownerId) {
+                $customer = Customer::where('email', $fromEmail)->first();
+                if ($customer) {
+                    $ownerId = $customer->owner_id;
+                }
+            }
 
-        // Final Fallback: use first owner user
-        if (!$ownerId) {
-            $ownerId = User::where('user_type', 'owner')->first()?->id;
+            if (!$ownerId) {
+                $ownerId = User::where('user_type', 'owner')->first()?->id;
+            }
         }
 
         // 2. Find or create Customer
@@ -155,7 +183,7 @@ class FetchEmails extends Command
             ->first();
 
         if (!$customer) {
-            Log::info("FetchEmails: Customer not found. Auto-creating customer: {$fromName}");
+            Log::info("FetchEmails: Customer not found. Auto-creating customer: {$fromName} for owner: {$ownerId}");
             $customerName = ucfirst(str_replace(['.', '_', '-'], ' ', $fromName));
             
             $customer = Customer::create([
