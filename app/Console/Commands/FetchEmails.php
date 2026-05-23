@@ -62,14 +62,25 @@ class FetchEmails extends Command
             $this->info("Accessing INBOX folder...");
             $folder = $client->getFolder('INBOX');
             
-            // Get all unread messages from the last 3 days, limited to 5 to prevent performance hangs
-            $this->info("Querying unseen messages from the last 3 days (limit 5)...");
-            $messages = $folder->query()->unseen()->since(now()->subDays(3))->limit(5)->get();
+            // Fetch the latest 10 messages directly from INBOX (avoids slow search queries)
+            $this->info("Fetching the latest 10 messages from INBOX...");
+            $messages = $folder->query()
+                ->leaveUnread()
+                ->setFetchOrder('desc')
+                ->limit(10)
+                ->get();
+            
             $count = $messages->count();
+            $this->info("Retrieved {$count} messages. Checking for unread (unseen) status...");
 
-            $this->info("Found {$count} unread emails.");
-
+            $processedCount = 0;
             foreach ($messages as $message) {
+                // If the message has already been Seen (read), skip it
+                if ($message->getFlags()->has('Seen')) {
+                    continue;
+                }
+
+                $processedCount++;
                 $subject = $message->getSubject() ?? 'No Subject';
                 $fromArray = $message->getFrom();
                 
@@ -93,6 +104,8 @@ class FetchEmails extends Command
                 // Mark the message as read (Seen)
                 $message->setFlag('Seen');
             }
+
+            $this->info("Processed {$processedCount} new unread emails.");
 
             $client->disconnect();
             $this->info("Finished processing emails.");
