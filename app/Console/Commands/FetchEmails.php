@@ -91,13 +91,32 @@ class FetchEmails extends Command
                 $this->info("Accessing INBOX folder...");
                 $folder = $client->getFolder('INBOX');
                 
-                // Fetch the latest 10 messages directly from INBOX (avoids slow search queries)
-                $this->info("Fetching the latest 10 messages from INBOX...");
+                // Get total messages count in INBOX
+                $info = $folder->examine();
+                $totalMessages = $info['exists'] ?? 0;
+                $this->info("Total messages in INBOX: {$totalMessages}");
+
+                // Paginate to retrieve the newest messages (avoids slow/unsupported IMAP SORT command)
+                $perPage = 50;
+                $lastPage = $totalMessages > 0 ? (int)ceil($totalMessages / $perPage) : 1;
+                
+                $this->info("Fetching the latest messages (page {$lastPage})...");
                 $messages = $folder->query()
                     ->leaveUnread()
-                    ->setFetchOrder('desc')
-                    ->limit(10)
+                    ->all()
+                    ->limit($perPage, $lastPage)
                     ->get();
+                
+                // If the last page has very few messages, merge with the previous page for safety
+                if ($messages->count() < 15 && $lastPage > 1) {
+                    $this->info("Last page had few messages, merging with the previous page...");
+                    $prevMessages = $folder->query()
+                        ->leaveUnread()
+                        ->all()
+                        ->limit($perPage, $lastPage - 1)
+                        ->get();
+                    $messages = $messages->merge($prevMessages);
+                }
                 
                 $count = $messages->count();
                 $this->info("Retrieved {$count} messages. Checking for unread (unseen) status...");
