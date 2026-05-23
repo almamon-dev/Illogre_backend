@@ -281,7 +281,7 @@ class IntegrationApiController extends Controller
         $code = $request->code;
 
         if (!$shop || !$code) {
-            return redirect()->away('https://illogre-next-frontend.vercel.app/dashboard?error=invalid_request');
+            return redirect()->away('https://illogre-next-frontend.vercel.app/integrations?error=invalid_request');
         }
 
         // Retrieve the owner's credentials from the database
@@ -290,7 +290,7 @@ class IntegrationApiController extends Controller
                                   ->first();
 
         if (!$integration || !isset($integration->settings['api_key'])) {
-            return redirect()->away('https://illogre-next-frontend.vercel.app/dashboard?error=credentials_not_found');
+            return redirect()->away('https://illogre-next-frontend.vercel.app/integrations?error=credentials_not_found');
         }
 
         $apiKey = $integration->settings['api_key'];
@@ -304,7 +304,7 @@ class IntegrationApiController extends Controller
         ]);
 
         if ($response->failed()) {
-            return redirect()->away('https://illogre-next-frontend.vercel.app/dashboard?error=token_exchange_failed');
+            return redirect()->away('https://illogre-next-frontend.vercel.app/integrations?error=token_exchange_failed');
         }
 
         $data = $response->json();
@@ -332,7 +332,7 @@ class IntegrationApiController extends Controller
             \Log::error("Failed to auto-sync customers and orders during callback: " . $e->getMessage());
         }
 
-        return redirect()->away('https://illogre-next-frontend.vercel.app/dashboard?shopify_connected=true');
+        return redirect()->away('https://illogre-next-frontend.vercel.app/integrations?shopify_connected=true');
     }
 
     /**

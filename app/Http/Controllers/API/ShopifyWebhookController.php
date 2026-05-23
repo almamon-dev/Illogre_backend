@@ -17,13 +17,17 @@ class ShopifyWebhookController extends Controller
     public function handleCustomers(Request $request)
     {
         $shopDomain = $request->header('x-shopify-shop-domain');
+        Log::info("Shopify Webhook Customer received for: {$shopDomain}");
+        
         $integration = $this->getIntegration($shopDomain);
 
         if (!$integration) {
+            Log::error("Shopify Webhook Customer Error: Integration not found for shop domain: {$shopDomain}");
             return response()->json(['error' => 'Shop not found'], 404);
         }
 
         if (!$this->verifyWebhook($request, $integration)) {
+            Log::error("Shopify Webhook Customer Error: HMAC verification failed for shop domain: {$shopDomain}");
             return response()->json(['error' => 'Unauthorized'], 401);
         }
 
@@ -38,8 +42,8 @@ class ShopifyWebhookController extends Controller
                 ],
                 [
                     'name' => trim(($payload['first_name'] ?? '') . ' ' . ($payload['last_name'] ?? '')),
-                    'email' => $payload['email'],
-                    'phone' => $payload['phone'],
+                    'email' => $payload['email'] ?? null,
+                    'phone' => $payload['phone'] ?? null,
                     'country' => $payload['default_address']['country'] ?? null,
                     'total_spent' => $payload['total_spent'] ?? 0,
                     'total_orders' => $payload['orders_count'] ?? 0,
@@ -57,13 +61,17 @@ class ShopifyWebhookController extends Controller
     public function handleOrders(Request $request)
     {
         $shopDomain = $request->header('x-shopify-shop-domain');
+        Log::info("Shopify Webhook Order received for: {$shopDomain}");
+        
         $integration = $this->getIntegration($shopDomain);
 
         if (!$integration) {
+            Log::error("Shopify Webhook Order Error: Integration not found for shop domain: {$shopDomain}");
             return response()->json(['error' => 'Shop not found'], 404);
         }
 
         if (!$this->verifyWebhook($request, $integration)) {
+            Log::error("Shopify Webhook Order Error: HMAC verification failed for shop domain: {$shopDomain}");
             return response()->json(['error' => 'Unauthorized'], 401);
         }
 
@@ -81,8 +89,8 @@ class ShopifyWebhookController extends Controller
                     ],
                     [
                         'name' => trim(($payload['customer']['first_name'] ?? '') . ' ' . ($payload['customer']['last_name'] ?? '')),
-                        'email' => $payload['customer']['email'],
-                        'phone' => $payload['customer']['phone'],
+                        'email' => $payload['customer']['email'] ?? null,
+                        'phone' => $payload['customer']['phone'] ?? null,
                     ]
                 );
             }
@@ -115,7 +123,7 @@ class ShopifyWebhookController extends Controller
     protected function getIntegration($shopDomain)
     {
         return Integration::where('provider', 'shopify')
-            ->where('settings->shop_domain', $shopDomain)
+            ->where('provider_id', $shopDomain)
             ->first();
     }
 
