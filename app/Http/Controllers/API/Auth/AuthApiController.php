@@ -68,7 +68,7 @@ class AuthApiController extends Controller
 
             return $this->sendResponse([
                 'email' => $request->email,
-                'message' => __('We’ve sent a verification code to your email.'),
+                'message' => __('We’ve sent a verification code to your email. (OTP: ' . $otp . ')'),
                 'next_step' => 'verify_otp',
             ], 'Registration initiated.');
 

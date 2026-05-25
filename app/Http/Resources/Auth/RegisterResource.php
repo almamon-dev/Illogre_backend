@@ -14,6 +14,8 @@ class RegisterResource extends JsonResource
      */
     public function toArray(Request $request): array
     {
+
+
         return [
             'id' => $this->id,
             'name' => $this->name,
@@ -22,7 +24,7 @@ class RegisterResource extends JsonResource
             'company_name' => $this->company_name,
             'email_verified_at' => $this->email_verified_at,
             'is_verified' => $this->email_verified_at !== null,
-            'is_subscribed' => $this->subscription()->exists(),
+            'is_subscribed' => $this->isSubscribed(),
             'created_at' => $this->created_at?->toDateTimeString(),
         ];
     }

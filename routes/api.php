@@ -53,7 +53,7 @@ Route::prefix('auth')->group(function () {
 Route::post('/webhooks/inbound-email', [\App\Http\Controllers\API\InboundEmailController::class, 'handle']);
 
 // Stripe Webhook
-Route::post('/webhooks/stripe', [StripeWebhookController::class, 'handle']);
+Route::post('/webhooks/stripe', [StripeWebhookController::class, 'handleWebhook']);
 
 // Shopify Webhook
 Route::post('/webhooks/shopify/customers', [\App\Http\Controllers\API\ShopifyWebhookController::class, 'handleCustomers'])->name('api.webhooks.shopify.customers');
