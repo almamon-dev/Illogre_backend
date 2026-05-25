@@ -12,10 +12,8 @@ use App\Http\Requests\Auth\ResetPasswordRequest;
 use App\Http\Requests\Auth\VerifyOtpRequest;
 use App\Http\Resources\Auth\LoginResource;
 use App\Models\Otp;
-use App\Models\Payment;
 use App\Models\PricingPlan;
 use App\Models\User;
-use App\Models\UserSubscription;
 use App\Repositories\RegistrationRepository;
 use App\Services\Manager\ManagerService;
 use App\Services\RegistrationService;
@@ -154,34 +152,21 @@ class AuthApiController extends Controller
             }
 
             $plan = PricingPlan::findOrFail($planId);
-            $session = $this->registrationService->createCheckoutSession($user->email, $plan);
+            
+            if (!$plan->stripe_price_id) {
+                return $this->sendError('Selected plan is not synced with Stripe correctly.', [], 400);
+            }
 
-            // Create pending payment record
-            Payment::create([
-                'user_id' => $user->id,
-                'pricing_plan_id' => $plan->id,
-                'external_payment_id' => $session->id,
-                'amount' => $plan->price,
-                'currency' => 'USD',
-                'status' => 'pending',
-                'payment_method' => 'card',
-            ]);
-
-            // Create pending subscription record
-            UserSubscription::updateOrCreate(
-                ['user_id' => $user->id],
-                [
-                    'pricing_plan_id' => $plan->id,
-                    'status' => 'pending',
-                    'is_trial' => false,
-                    'started_at' => now(),
-                    'expires_at' => now()->addMonth(),
-                ]
-            );
+            // Create Cashier Checkout Session
+            $checkout = $user->newSubscription('default', $plan->stripe_price_id)
+                ->checkout([
+                    'success_url' => env('STRIPE_SUCCESS_URL', env('FRONTEND_URL') . '/auth/register/registration_successfull'),
+                    'cancel_url' => env('STRIPE_CANCEL_URL', env('FRONTEND_URL') . '/auth/register/checkout'),
+                ]);
 
             return $this->sendResponse([
                 'email' => $user->email,
-                'checkout_url' => $session->url,
+                'checkout_url' => $checkout->url,
                 'is_subscribed' => $user->isSubscribed(),
             ], 'Checkout ready.');
 

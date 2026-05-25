@@ -13,8 +13,8 @@ use App\Http\Controllers\API\Owner\SettingsApiController;
 use App\Http\Controllers\API\Owner\ShopifyController;
 use App\Http\Controllers\API\Owner\TeamController;
 use App\Http\Controllers\API\PricingPlanApiController;
-use App\Http\Controllers\API\ShopifyWebhookController;
-use App\Http\Controllers\API\StripeWebhookController;
+use App\Http\Controllers\ShopifyWebhookController as AppShopifyWebhookController;
+use App\Http\Controllers\StripeWebhookController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -56,8 +56,8 @@ Route::post('/webhooks/inbound-email', [\App\Http\Controllers\API\InboundEmailCo
 Route::post('/webhooks/stripe', [StripeWebhookController::class, 'handle']);
 
 // Shopify Webhook
-Route::post('/webhooks/shopify/customers', [ShopifyWebhookController::class, 'handleCustomers'])->name('api.webhooks.shopify.customers');
-Route::post('/webhooks/shopify/orders', [ShopifyWebhookController::class, 'handleOrders'])->name('api.webhooks.shopify.orders');
+Route::post('/webhooks/shopify/customers', [\App\Http\Controllers\API\ShopifyWebhookController::class, 'handleCustomers'])->name('api.webhooks.shopify.customers');
+Route::post('/webhooks/shopify/orders', [\App\Http\Controllers\API\ShopifyWebhookController::class, 'handleOrders'])->name('api.webhooks.shopify.orders');
 
 // Shopify OAuth Callback (Public route for Shopify to redirect to)
 Route::get('/owner/shopify/callback', [\App\Http\Controllers\API\Owner\IntegrationApiController::class, 'shopifyCallback'])->name('api.owner.shopify.callback');
@@ -70,6 +70,11 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::prefix('owner')->middleware(['owner'])->group(function () {
         Route::get('/dashboard/overview', [DashboardController::class, 'index']);
         Route::get('/billing/overview', [BillingController::class, 'index']);
+        Route::post('/billing/checkout', [BillingController::class, 'checkout']);
+        Route::post('/billing/portal', [BillingController::class, 'portal']);
+        Route::post('/billing/cancel', [BillingController::class, 'cancel']);
+        Route::post('/billing/resume', [BillingController::class, 'resume']);
+        Route::post('/billing/swap', [BillingController::class, 'swap']);
 
         // Team Management (Requires Subscription)
         Route::middleware(['subscribed'])->group(function () {

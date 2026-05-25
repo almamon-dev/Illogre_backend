@@ -8,10 +8,11 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Facades\Crypt;
 use Laravel\Sanctum\HasApiTokens;
+use Laravel\Cashier\Billable;
 
 class User extends Authenticatable
 {
-    use HasApiTokens, HasFactory, Notifiable;
+    use HasApiTokens, HasFactory, Notifiable, Billable;
 
     /**
      * The attributes that are mass assignable.
@@ -86,13 +87,6 @@ class User extends Authenticatable
         return $this->hasMany(Otp::class);
     }
 
-    /**
-     * Get the user's active subscription.
-     */
-    public function subscription()
-    {
-        return $this->hasOne(UserSubscription::class)->latestOfMany();
-    }
 
     /**
      * Get the user's settings (pivot).
@@ -142,10 +136,7 @@ class User extends Authenticatable
     public function isSubscribed()
     {
         if ($this->user_type === 'owner') {
-            return $this->subscription()
-                ->where('status', 'active')
-                ->where('expires_at', '>', now())
-                ->exists();
+            return $this->subscribed('default');
         }
 
         if ($this->user_type === 'member' && $this->parent_id) {

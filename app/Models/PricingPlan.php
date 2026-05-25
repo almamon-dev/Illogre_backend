@@ -11,17 +11,17 @@ class PricingPlan extends Model
 
     protected $fillable = [
         'name',
+        'stripe_product_id',
+        'stripe_price_id',
         'price',
         'billing_period',
         'trial_days',
-        'features',
         'is_active',
         'is_popular',
         'order',
     ];
 
     protected $casts = [
-        'features' => 'array',
         'price' => 'decimal:2',
     ];
 

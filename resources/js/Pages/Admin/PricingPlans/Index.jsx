@@ -3,7 +3,7 @@ import AdminLayout from '@/Layouts/AdminLayout';
 import { Head, Link, router } from '@inertiajs/react';
 import {
     Plus, Edit, Trash2, Power, PowerOff, Check,
-    Users, Truck, Euro, Calendar, Award
+    Users, Truck, Euro, Calendar, Award, RefreshCw
 } from 'lucide-react';
 
 export default function Index({ auth, plans = [] }) {
@@ -75,12 +75,15 @@ export default function Index({ auth, plans = [] }) {
                 <div className="mb-6">
                     <h4 className="text-[13px] font-semibold text-[#2f3344] mb-3">Features</h4>
                     <ul className="space-y-2.5">
-                        {plan.features && plan.features.map((feature, index) => (
+                        {plan.plan_features && plan.plan_features.map((feature, index) => (
                             <li key={index} className="flex items-start gap-2 text-[13px] text-slate-600 font-medium">
                                 <div className="w-4 h-4 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-600 mt-0.5 flex-shrink-0">
                                     <Check size={10} strokeWidth={3} />
                                 </div>
-                                <span>{feature}</span>
+                                <span>
+                                    {feature.name.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                                    {feature.value ? `: ${feature.value}` : ''}
+                                </span>
                             </li>
                         ))}
                     </ul>
@@ -144,14 +147,15 @@ export default function Index({ auth, plans = [] }) {
                                     Annual
                                 </button>
                             </div>
-
-                            <Link
-                                href={route('admin.pricing-plans.create')}
-                                className="inline-flex items-center gap-2 px-4 py-1.5 bg-[#c1e663] text-[#1a1c21] rounded-md text-[14px] font-extrabold transition-all"
-                            >
-                                <Plus size={18} strokeWidth={3} />
-                                Create New Plan
-                            </Link>
+                            <div className="flex items-center gap-3">
+                                <Link
+                                    href={route('admin.pricing-plans.create')}
+                                    className="inline-flex items-center gap-2 px-5 py-2.5 bg-white border border-slate-200 text-[#1a1c21] hover:bg-slate-50 rounded-lg text-[13px] font-bold transition-all shadow-sm"
+                                >
+                                    <Plus size={16} strokeWidth={2.5} />
+                                    Add New Plan
+                                </Link>
+                            </div>
                         </div>
                     </div>
 

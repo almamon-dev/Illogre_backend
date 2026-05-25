@@ -2,7 +2,6 @@
 
 namespace App\Services\Owner;
 
-use App\Models\Payment;
 use App\Models\SubscriptionUsage;
 use App\Models\User;
 use Exception;
@@ -16,9 +15,17 @@ class BillingService
     public function getBillingData(): array
     {
         $user = auth()->user();
-        $subscription = $user->subscription()->with('pricingPlan.planFeatures')->first();
-        $isActive = $subscription && $subscription->status === 'active' && $subscription->expires_at > now();
-        $plan = $isActive ? $subscription->pricingPlan : null;
+        
+        // Use Cashier to check subscription status
+        $cashierSubscription = $user->subscription('default');
+        $isActive = $user->subscribed('default');
+        
+        $plan = null;
+        $autoRenew = false;
+        if ($isActive && $cashierSubscription) {
+            $plan = \App\Models\PricingPlan::where('stripe_price_id', $cashierSubscription->stripe_price)->with('planFeatures')->first();
+            $autoRenew = !$cashierSubscription->canceled(); // If not canceled, it will auto-renew
+        }
 
         // Dynamic Team Members count (Excluding Owner)
         $teamMembersCount = User::where('parent_id', $user->id)->count();
@@ -40,22 +47,27 @@ class BillingService
         $ticketsUsed = (int) ($usages->where('feature_name', 'ticket_limit')->first()?->used_count ?? 0);
         $aiActionsUsed = (int) ($usages->where('feature_name', 'ai_limit')->first()?->used_count ?? 0);
 
-        // Fetch Dynamic Billing History
-        $payments = Payment::where('user_id', $user->id)
-            ->with('pricingPlan')
-            ->orderBy('created_at', 'desc')
-            ->get()
-            ->map(function ($payment, $index) {
-                return [
-                    'sl_no' => $index + 1,
-                    'invoice_id' => 'INV-2026-'.str_pad($index + 1, 3, '0', STR_PAD_LEFT),
-                    'date' => $payment->created_at->format('M d, Y'),
-                    'description' => ($payment->pricingPlan ? $payment->pricingPlan->name : 'Starter').' Plan',
-                    'amount' => '$'.number_format($payment->amount, 0),
-                    'status' => ucfirst($payment->status),
-                    'action_url' => '#', // Placeholder for download link
-                ];
-            });
+        // Fetch Dynamic Billing History from Cashier/Stripe
+        $payments = [];
+        try {
+            if ($user->hasStripeId()) {
+                $invoices = $user->invoices();
+                $payments = collect($invoices)->map(function ($invoice, $index) {
+                    $description = $invoice->lines->data[0]->description ?? 'Subscription';
+                    return [
+                        'sl_no' => $index + 1,
+                        'invoice_id' => $invoice->number ?? 'INV-'.str_pad($index + 1, 3, '0', STR_PAD_LEFT),
+                        'date' => $invoice->date()->format('M d, Y'),
+                        'description' => $description,
+                        'amount' => $invoice->total(),
+                        'status' => ucfirst($invoice->status),
+                        'action_url' => $invoice->hosted_invoice_url ?? '#',
+                    ];
+                })->values()->toArray();
+            }
+        } catch (\Exception $e) {
+            // Log or ignore if fetching invoices fails
+        }
 
         return [
             'usage' => [
@@ -71,6 +83,7 @@ class BillingService
                 'name' => $plan ? $plan->name : 'No Active Plan',
                 'price' => $plan ? '$'.number_format($plan->price, 0).'/month' : '$0/month',
                 'description' => $plan ? 'Up to '.number_format($ticketTotal).' tickets' : 'Subscribe to a plan to start.',
+                'auto_renew' => $autoRenew,
             ],
             'history' => $payments,
         ];
@@ -84,9 +97,13 @@ class BillingService
     public function checkLimit(string $feature, $userId = null): bool
     {
         $userId = $userId ?: auth()->id();
-        $user = User::with(['subscription.pricingPlan.planFeatures'])->findOrFail($userId);
+        $user = User::findOrFail($userId);
         
-        $plan = $user->subscription ? $user->subscription->pricingPlan : null;
+        $plan = null;
+        if ($user->subscribed('default') && $user->subscription('default')) {
+            $plan = \App\Models\PricingPlan::where('stripe_price_id', $user->subscription('default')->stripe_price)->with('planFeatures')->first();
+        }
+
         if (!$plan) {
             // Default limits if no plan (or maybe throw exception if required)
             $limitValue = 0;

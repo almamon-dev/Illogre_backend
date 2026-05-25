@@ -28,6 +28,8 @@ Route::get('/shopify/install', [ShopifyController::class, 'install'])
 Route::get('/shopify/callback', [ShopifyController::class, 'callback'])
     ->name('shopify.callback');
 
+Route::post('/stripe/webhook', [\App\Http\Controllers\StripeWebhookController::class, 'handleWebhook']);
+
 Route::middleware('auth')->group(function () {
 
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');

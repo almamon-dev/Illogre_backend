@@ -94,7 +94,19 @@ export default function Login({ status, canResetPassword }) {
                 </div>
             </form>
 
-           
+            {/* Quick Login for Development */}
+            <div className="mt-8 pt-6 border-t border-gray-200 dark:border-gray-700">
+                <p className="text-xs text-center text-gray-500 mb-4 uppercase tracking-wider font-semibold">Test Credentials</p>
+                <div className="grid grid-cols-1 gap-2">
+                    <button
+                        type="button"
+                        onClick={() => { setData({ email: 'admin@admin.com', password: 'admin123', remember: false }); }}
+                        className="px-3 py-2 text-xs font-medium bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 rounded transition-colors"
+                    >
+                        Copy Credentials
+                    </button>
+                </div>
+            </div>
         </GuestLayout>
     );
 }

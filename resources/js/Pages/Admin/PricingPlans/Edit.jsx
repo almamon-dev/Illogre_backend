@@ -6,8 +6,8 @@ import { ChevronLeft, Plus, X, Save } from 'lucide-react';
 export default function Edit({ auth, pricingPlan }) {
     // Helper to find limit from relational features
     const getLimitValue = (key, defaultValue) => {
-        if (!pricingPlan.features_list) return defaultValue;
-        const feature = pricingPlan.features_list.find(f => f.name === key && f.is_limit);
+        if (!pricingPlan.plan_features) return defaultValue;
+        const feature = pricingPlan.plan_features.find(f => f.name === key && f.is_limit);
         return feature ? feature.value : defaultValue;
     };
 
@@ -16,7 +16,9 @@ export default function Edit({ auth, pricingPlan }) {
         price: pricingPlan.price || '',
         billing_period: pricingPlan.billing_period || 'monthly',
         trial_days: pricingPlan.trial_days || 0,
-        display_features: pricingPlan.features && pricingPlan.features.length > 0 ? pricingPlan.features : [''],
+        display_features: pricingPlan.plan_features 
+            ? pricingPlan.plan_features.filter(f => !f.is_limit).map(f => f.value || f.name).concat(pricingPlan.plan_features.filter(f => !f.is_limit).length === 0 ? [''] : [])
+            : [''],
         limits: {
             ticket_limit: getLimitValue('ticket_limit', 2500),
             member_limit: getLimitValue('member_limit', 10),
@@ -112,10 +114,9 @@ export default function Edit({ auth, pricingPlan }) {
                                     type="text"
                                     value={formData.name}
                                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                                    className={`w-full h-11 px-4 bg-white border ${errors.name ? 'border-rose-300' : 'border-slate-200'} rounded-lg text-[14px] focus:outline-none focus:border-[#c1e663] focus:ring-1 focus:ring-[#c1e663] transition-all`}
-                                    placeholder="Enter plan name"
+                                    className="w-full h-11 px-4 bg-white border border-slate-200 rounded-lg text-[14px] text-slate-900 focus:outline-none focus:border-[#c1e663] focus:ring-1 focus:ring-[#c1e663] transition-all"
                                 />
-                                {errors.name && <p className="text-[12px] text-rose-500 font-medium">{errors.name}</p>}
+                                {errors.name && <p className="text-rose-500 text-xs mt-1">{errors.name}</p>}
                             </div>
 
                             {/* Billing Period */}
@@ -123,8 +124,8 @@ export default function Edit({ auth, pricingPlan }) {
                                 <label className="text-[13px] font-bold text-slate-700">Billing Period <span className="text-rose-500">*</span></label>
                                 <select
                                     value={formData.billing_period}
-                                    onChange={(e) => setFormData({ ...formData, billing_period: e.target.value })}
-                                    className="w-full h-11 px-4 bg-white border border-slate-200 rounded-lg text-[14px] focus:outline-none focus:border-[#c1e663] focus:ring-1 focus:ring-[#c1e663] transition-all"
+                                    disabled
+                                    className="w-full h-11 px-4 bg-slate-50 border border-slate-200 rounded-lg text-[14px] text-slate-500 cursor-not-allowed focus:outline-none appearance-none"
                                 >
                                     <option value="monthly">Monthly</option>
                                     <option value="annual">Annual</option>
@@ -140,14 +141,11 @@ export default function Edit({ auth, pricingPlan }) {
                                     <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-medium text-[14px]">$</span>
                                     <input
                                         type="number"
-                                        step="0.01"
                                         value={formData.price}
-                                        onChange={(e) => setFormData({ ...formData, price: e.target.value })}
-                                        className={`w-full h-11 pl-8 pr-4 bg-white border ${errors.price ? 'border-rose-300' : 'border-slate-200'} rounded-lg text-[14px] focus:outline-none focus:border-[#c1e663] focus:ring-1 focus:ring-[#c1e663] transition-all`}
-                                        placeholder="0.00"
+                                        readOnly
+                                        className="w-full h-11 pl-8 pr-4 bg-slate-50 border border-slate-200 rounded-lg text-[14px] text-slate-500 cursor-not-allowed focus:outline-none"
                                     />
                                 </div>
-                                {errors.price && <p className="text-[12px] text-rose-500 font-medium">{errors.price}</p>}
                             </div>
 
                             {/* Order */}

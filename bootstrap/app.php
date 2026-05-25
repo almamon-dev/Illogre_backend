@@ -35,6 +35,10 @@ return Application::configure(basePath: dirname(__DIR__))
             'support_manager' => IsSupportManager::class,
             'support_agent' => IsSupportAgent::class,
         ]);
+
+        $middleware->validateCsrfTokens(except: [
+            'stripe/*',
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //

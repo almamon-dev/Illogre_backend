@@ -25,6 +25,7 @@ export default function Create({ auth }) {
     const handleSubmit = (e) => {
         e.preventDefault();
         const cleanedFeatures = formData.display_features.filter(f => f.trim() !== '');
+        
         router.post(route('admin.pricing-plans.store'), {
             ...formData,
             display_features: cleanedFeatures,
@@ -57,7 +58,7 @@ export default function Create({ auth }) {
 
     return (
         <AdminLayout user={auth.user}>
-            <Head title="Create Plan" />
+            <Head title="Create Pricing Plan" />
 
             <div className="min-h-screen bg-[#fafbfc] font-['Plus_Jakarta_Sans',sans-serif]">
                 <div className="max-w-8xl mx-auto px-6 py-8">
@@ -65,14 +66,14 @@ export default function Create({ auth }) {
                     <div className="flex items-center justify-between mb-8">
                         <div className="flex items-center gap-3">
                             <Link
-                                href={route('admin.pricing-plans.index')}
-                                className="w-10 h-10 flex items-center justify-center bg-white border border-slate-200 rounded-lg text-slate-500 hover:text-[#1a1c21] hover:border-slate-300 transition-all"
+                                 href={route('admin.pricing-plans.index')}
+                                 className="w-10 h-10 flex items-center justify-center bg-white border border-slate-200 rounded-lg text-slate-500 hover:text-[#1a1c21] hover:border-slate-300 transition-all"
                             >
                                 <ChevronLeft size={20} strokeWidth={2.5} />
                             </Link>
                             <div>
-                                <h1 className="text-[24px] font-bold text-[#1a1c21]">Create New Plan</h1>
-                                <p className="text-[13px] text-slate-500 font-medium -mt-1">Configure your new subscription tier</p>
+                                <h1 className="text-[24px] font-bold text-[#1a1c21]">Create Plan</h1>
+                                <p className="text-[13px] text-slate-500 font-medium -mt-1">Add a new subscription tier</p>
                             </div>
                         </div>
                         <div className="flex items-center gap-3">
@@ -87,7 +88,7 @@ export default function Create({ auth }) {
                                 className="inline-flex items-center gap-2 px-6 py-2.5 bg-[#c1e663] text-[#1a1c21] hover:bg-[#b0d552] rounded-lg text-[13px] font-bold transition-all shadow-sm"
                             >
                                 <Save size={16} strokeWidth={2.5} />
-                                Save Plan
+                                Create Plan
                             </button>
                         </div>
                     </div>
@@ -102,10 +103,10 @@ export default function Create({ auth }) {
                                     type="text"
                                     value={formData.name}
                                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                                    className={`w-full h-11 px-4 bg-white border ${errors.name ? 'border-rose-300' : 'border-slate-200'} rounded-lg text-[14px] focus:outline-none focus:border-[#c1e663] focus:ring-1 focus:ring-[#c1e663] transition-all`}
-                                    placeholder="Enter plan name"
+                                    className="w-full h-11 px-4 bg-white border border-slate-200 rounded-lg text-[14px] text-slate-900 focus:outline-none focus:border-[#c1e663] focus:ring-1 focus:ring-[#c1e663] transition-all"
+                                    placeholder="e.g. Starter Plan"
                                 />
-                                {errors.name && <p className="text-[12px] text-rose-500 font-medium">{errors.name}</p>}
+                                {errors.name && <p className="text-rose-500 text-xs mt-1">{errors.name}</p>}
                             </div>
 
                             {/* Billing Period */}
@@ -114,13 +115,12 @@ export default function Create({ auth }) {
                                 <select
                                     value={formData.billing_period}
                                     onChange={(e) => setFormData({ ...formData, billing_period: e.target.value })}
-                                    className="w-full h-11 px-4 bg-white border border-slate-200 rounded-lg text-[14px] focus:outline-none focus:border-[#c1e663] focus:ring-1 focus:ring-[#c1e663] transition-all"
+                                    className="w-full h-11 px-4 bg-white border border-slate-200 rounded-lg text-[14px] text-slate-900 focus:outline-none focus:border-[#c1e663] focus:ring-1 focus:ring-[#c1e663] transition-all appearance-none"
                                 >
                                     <option value="monthly">Monthly</option>
                                     <option value="annual">Annual</option>
-                                    <option value="quarterly">Quarterly</option>
-                                    <option value="trial">Free Trial</option>
                                 </select>
+                                {errors.billing_period && <p className="text-rose-500 text-xs mt-1">{errors.billing_period}</p>}
                             </div>
 
                             {/* Price */}
@@ -133,11 +133,11 @@ export default function Create({ auth }) {
                                         step="0.01"
                                         value={formData.price}
                                         onChange={(e) => setFormData({ ...formData, price: e.target.value })}
-                                        className={`w-full h-11 pl-8 pr-4 bg-white border ${errors.price ? 'border-rose-300' : 'border-slate-200'} rounded-lg text-[14px] focus:outline-none focus:border-[#c1e663] focus:ring-1 focus:ring-[#c1e663] transition-all`}
+                                        className="w-full h-11 pl-8 pr-4 bg-white border border-slate-200 rounded-lg text-[14px] text-slate-900 focus:outline-none focus:border-[#c1e663] focus:ring-1 focus:ring-[#c1e663] transition-all"
                                         placeholder="0.00"
                                     />
                                 </div>
-                                {errors.price && <p className="text-[12px] text-rose-500 font-medium">{errors.price}</p>}
+                                {errors.price && <p className="text-rose-500 text-xs mt-1">{errors.price}</p>}
                             </div>
 
                             {/* Order */}
@@ -223,7 +223,7 @@ export default function Create({ auth }) {
                             </div>
 
                             {/* Options */}
-                            <div className="col-span-2 flex items-center gap-6 pt-2">
+                            <div className="col-span-2 flex items-center gap-6 pt-2 border-t border-slate-100 mt-2">
                                 <label className="flex items-center gap-2 cursor-pointer group">
                                     <input
                                         type="checkbox"
@@ -248,9 +248,8 @@ export default function Create({ auth }) {
                     </div>
                 </div>
             </div>
-
-            <style dangerouslySetInnerHTML={{
-                __html: `
+            
+            <style dangerouslySetInnerHTML={{ __html: `
                 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
             `}} />
         </AdminLayout>

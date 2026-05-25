@@ -9,6 +9,7 @@
         "php": "^8.2",
         "barryvdh/laravel-dompdf": "^3.1",
         "inertiajs/inertia-laravel": "^2.0",
+        "laravel/cashier": "^16.5",
         "laravel/framework": "^12.0",
         "laravel/reverb": "^1.7",
         "laravel/sanctum": "^4.0",
@@ -16,7 +17,6 @@
         "maatwebsite/excel": "^3.1",
         "shopify/shopify-api": "^6.1",
         "smalot/pdfparser": "^2.12",
-        "stripe/stripe-php": "^19.3",
         "tightenco/ziggy": "^2.0",
         "webklex/laravel-imap": "^6.2"
     },
