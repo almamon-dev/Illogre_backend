@@ -20,7 +20,8 @@ class Ticket extends Model
         'priority',
         'assigned',
         'customer_id',
-        'owner_id'
+        'owner_id',
+        'body'
     ];
 
     /**
