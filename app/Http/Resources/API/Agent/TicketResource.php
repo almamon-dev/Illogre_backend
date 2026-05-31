@@ -15,6 +15,7 @@ class TicketResource extends JsonResource
     public function toArray(Request $request): array
     {
         return [
+            'id' => $this->id,
             'ticket_id' => $this->ticket_number,
             'customer' => [
                 'name' => $this->customer_name,
@@ -26,6 +27,7 @@ class TicketResource extends JsonResource
             'category' => $this->category,
             'source' => $this->source,
             'confidence' => (int) $this->confidence,
+            'priority' => $this->priority,
             'status' => $this->status,
             'assigned' => $this->assigned,
             'updated' => $this->updated_at->diffForHumans(),

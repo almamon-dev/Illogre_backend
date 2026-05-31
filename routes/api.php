@@ -133,11 +133,14 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::put('/agents/{id}', [AgentController::class, 'update']);
         Route::delete('/agents/{id}', [AgentController::class, 'destroy']);
     });
-    // Support Agent Routes
-    Route::prefix('agent')->middleware(['support_agent', 'subscribed'])->group(function () {
+    // Shared Team Routes (Owner, Manager, Agent)
+    Route::prefix('shared')->middleware(['subscribed'])->group(function () {
         Route::get('/tickets', [TicketController::class, 'index']);
         Route::get('/tickets/{id}', [TicketController::class, 'show']);
+    });
 
+    // Support Agent Routes
+    Route::prefix('agent')->middleware(['support_agent', 'subscribed'])->group(function () {
         // Agent Customer Access
         Route::get('/customers', [CustomerController::class, 'index']);
         Route::get('/customers/{id}', [CustomerController::class, 'show']);

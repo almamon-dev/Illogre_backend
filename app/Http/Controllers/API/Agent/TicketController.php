@@ -5,6 +5,7 @@ namespace App\Http\Controllers\API\Agent;
 use App\Http\Controllers\Controller;
 use App\Models\Ticket;
 use App\Http\Resources\API\Agent\TicketResource;
+use App\Http\Resources\API\Agent\TicketDetailResource;
 use App\Traits\ApiResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -82,7 +83,7 @@ class TicketController extends Controller
             }
 
             return $this->sendResponse([
-                'ticket' => new TicketResource($ticket),
+                'ticket' => new TicketDetailResource($ticket),
                 'customer_details' => $customerDetails
             ], 'Ticket details retrieved successfully.');
 
