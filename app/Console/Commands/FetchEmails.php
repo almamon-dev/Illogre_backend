@@ -213,9 +213,13 @@ class FetchEmails extends Command
             ]);
         }
 
-        // 3. Load recent orders for context
-        $recentOrders = Order::where('customer_id', $customer->id)
-            ->where('owner_id', $ownerId)
+        // 3. Load recent orders for context (Including Guest Checkouts via raw_data)
+        $recentOrders = Order::where('owner_id', $ownerId)
+            ->where(function ($query) use ($customer, $fromEmail) {
+                $query->where('customer_id', $customer->id)
+                      ->orWhere('raw_data->email', $fromEmail)
+                      ->orWhere('raw_data->contact_email', $fromEmail);
+            })
             ->orderBy('shopify_created_at', 'desc')
             ->limit(3)
             ->get();

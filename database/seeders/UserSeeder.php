@@ -60,6 +60,15 @@ class UserSeeder extends Seeder
                 'status' => 'active',
                 'is_trial' => false,
             ]);
+            
+            // Also create a Cashier subscription so $user->subscribed('default') returns true
+            $subscribedOwner->subscriptions()->create([
+                'name' => 'default',
+                'stripe_id' => 'sub_fake_' . uniqid(),
+                'stripe_status' => 'active',
+                'stripe_price' => 'price_fake_123',
+                'quantity' => 1,
+            ]);
 
             Payment::create([
                 'user_id' => $subscribedOwner->id,

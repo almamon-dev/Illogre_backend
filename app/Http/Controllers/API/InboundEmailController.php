@@ -77,9 +77,13 @@ class InboundEmailController extends Controller
             ]);
         }
 
-        // 3. Load Related Orders
-        $recentOrders = Order::where('customer_id', $customer->id)
-            ->where('owner_id', $ownerId)
+        // 3. Load Related Orders (Including Guest Checkouts via raw_data)
+        $recentOrders = Order::where('owner_id', $ownerId)
+            ->where(function ($query) use ($customer, $fromEmail) {
+                $query->where('customer_id', $customer->id)
+                      ->orWhere('raw_data->email', $fromEmail)
+                      ->orWhere('raw_data->contact_email', $fromEmail);
+            })
             ->orderBy('shopify_created_at', 'desc')
             ->limit(3)
             ->get();
@@ -112,10 +116,6 @@ class InboundEmailController extends Controller
             'assigned' => 'AI Agent',
             'owner_id' => $ownerId,
         ]);
-
-        // Here you would also store the email body and order context in a 'messages' or 'ticket_details' table.
-        // For now, we'll just log the success.
-        
         Log::info("Ticket created: {$ticket->ticket_number} for customer: {$customerName}");
 
         return response()->json([
