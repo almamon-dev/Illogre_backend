@@ -125,8 +125,12 @@ class FetchEmails extends Command
                     $toArray = $message->getTo();
                     $toEmail = !empty($toArray) ? $toArray[0]->mail : $account['username'];
 
-                    // Get content body (prefer HTML, fallback to text)
-                    $body = $message->hasHTMLBody() ? $message->getHTMLBody() : $message->getTextBody();
+                    // Get content body (Prefer Text, fallback to HTML)
+                    $body = $message->hasTextBody() ? $message->getTextBody() : ($message->hasHTMLBody() ? $message->getHTMLBody() : 'No Content');
+                    
+                    if (empty(trim(strip_tags($body)))) {
+                        $body = 'No text content available in this email.';
+                    }
                     
                     // Process ticket generation
                     $this->processEmailAsTicket($fromEmail, $fromName, $toEmail, $subject, $body, $account['owner_id']);
