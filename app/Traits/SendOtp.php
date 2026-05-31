@@ -34,13 +34,13 @@ trait SendOtp
                 $otp = $this->generateNumericOtp($otpLength);
 
                 // Send OTP first
-                try {
-                    Mail::to($user->email)->send(new GenericOtpMail($otp, $user->name, $purpose));
-                } catch (Exception $e) {
-                    Log::error("Failed to send OTP to {$user->email}: {$e->getMessage()}");
-                    DB::rollBack();
-                    throw new Exception('SMTP Error: OTP email not sent.');
-                }
+                // try {
+                //     Mail::to($user->email)->send(new GenericOtpMail($otp, $user->name, $purpose));
+                // } catch (Exception $e) {
+                //     Log::error("Failed to send OTP to {$user->email}: {$e->getMessage()}");
+                //     DB::rollBack();
+                //     throw new Exception('SMTP Error: OTP email not sent.');
+                // }
 
                 // Email sent → insert OTP in DB
                 $user->otps()->create([
