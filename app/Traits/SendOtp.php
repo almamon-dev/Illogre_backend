@@ -72,7 +72,7 @@ trait SendOtp
         $otp = $this->generateNumericOtp($otpLength);
 
         try {
-            Mail::to($email)->send(new GenericOtpMail($otp, $name, $purpose));
+            // Mail::to($email)->send(new GenericOtpMail($otp, $name, $purpose));
             return (int) $otp;
         } catch (Exception $e) {
             Log::error("Failed to send Generic OTP to {$email}: {$e->getMessage()}");
