@@ -97,36 +97,18 @@ class FetchEmails extends Command
                 $this->info("Total messages in INBOX: {$totalMessages}");
 
                 // Paginate to retrieve the newest messages (avoids slow/unsupported IMAP SORT command)
-                $perPage = 50;
-                $lastPage = $totalMessages > 0 ? (int)ceil($totalMessages / $perPage) : 1;
-                
-                $this->info("Fetching the latest messages (page {$lastPage})...");
+                $this->info("Fetching unread messages...");
+                // Optimize: Ask IMAP server directly for only UNSEEN messages
                 $messages = $folder->query()
+                    ->unseen()
                     ->leaveUnread()
-                    ->all()
-                    ->limit($perPage, $lastPage)
                     ->get();
                 
-                // If the last page has very few messages, merge with the previous page for safety
-                if ($messages->count() < 15 && $lastPage > 1) {
-                    $this->info("Last page had few messages, merging with the previous page...");
-                    $prevMessages = $folder->query()
-                        ->leaveUnread()
-                        ->all()
-                        ->limit($perPage, $lastPage - 1)
-                        ->get();
-                    $messages = $messages->merge($prevMessages);
-                }
-                
                 $count = $messages->count();
-                $this->info("Retrieved {$count} messages. Checking for unread (unseen) status...");
+                $this->info("Retrieved {$count} unread messages.");
 
                 $processedCount = 0;
                 foreach ($messages as $message) {
-                    // If the message has already been Seen (read), skip it
-                    if ($message->getFlags()->has('Seen')) {
-                        continue;
-                    }
 
                     $processedCount++;
                     $subject = $message->getSubject() ?? 'No Subject';
