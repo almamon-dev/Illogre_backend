@@ -2,11 +2,11 @@
 
 namespace Database\Seeders;
 
-use App\Models\Payment;
+
 use App\Models\PricingPlan;
 use App\Models\User;
 use App\Models\UserSetting;
-use App\Models\UserSubscription;
+
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
 
@@ -32,7 +32,7 @@ class UserSeeder extends Seeder
         // 2. Create a Subscribed Owner
         $subscribedOwner = User::create([
             'name' => 'Subscribed Owner',
-            'email' => 'owner@test.com',
+            'email' => 'mamon193p@gmail.com',
             'password' => Hash::make('password123'),
             'user_type' => 'owner',
             'role' => 'owner',
@@ -49,36 +49,18 @@ class UserSeeder extends Seeder
             'value' => 'mamon193p@gmail.com',
         ]);
 
-        // Create Subscription for Owner
+        // Create Cashier subscription so $user->subscribed('default') returns true
         $plan = PricingPlan::where('name', 'Starter')->first();
         if ($plan) {
-            UserSubscription::create([
-                'user_id' => $subscribedOwner->id,
-                'pricing_plan_id' => $plan->id,
-                'started_at' => now(),
-                'expires_at' => now()->addMonth(),
-                'status' => 'active',
-                'is_trial' => false,
-            ]);
-            
-            // Also create a Cashier subscription so $user->subscribed('default') returns true
+            // Cashier subscription — makes isSubscribed() return true
             $subscribedOwner->subscriptions()->create([
-                'name' => 'default',
+                'type' => 'default',
                 'stripe_id' => 'sub_fake_' . uniqid(),
                 'stripe_status' => 'active',
                 'stripe_price' => 'price_fake_123',
                 'quantity' => 1,
             ]);
 
-            Payment::create([
-                'user_id' => $subscribedOwner->id,
-                'pricing_plan_id' => $plan->id,
-                'external_payment_id' => 'ch_test_'.str()->random(10),
-                'amount' => $plan->price,
-                'currency' => 'USD',
-                'status' => 'completed',
-                'payment_method' => 'card',
-            ]);
         }
 
         // 3. Create an Unsubscribed Owner
