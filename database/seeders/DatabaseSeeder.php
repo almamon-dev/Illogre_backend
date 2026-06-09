@@ -18,6 +18,7 @@ class DatabaseSeeder extends Seeder
             PricingPlanSeeder::class,
             UserSeeder::class,
             TicketSeeder::class,
+            AutomationAndSlaSeeder::class,
         ]);
     }
 }

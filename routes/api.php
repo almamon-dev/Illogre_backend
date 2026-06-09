@@ -13,6 +13,9 @@ use App\Http\Controllers\API\Owner\SettingsApiController;
 use App\Http\Controllers\API\Owner\ShopifyController;
 use App\Http\Controllers\API\Owner\TeamController;
 use App\Http\Controllers\API\PricingPlanApiController;
+use App\Http\Controllers\API\Owner\AutomationRuleController;
+use App\Http\Controllers\API\Owner\SlaPolicyController;
+use App\Http\Controllers\API\Agent\TicketAiController;
 use App\Http\Controllers\ShopifyWebhookController as AppShopifyWebhookController;
 use App\Http\Controllers\StripeWebhookController;
 use Illuminate\Http\Request;
@@ -58,6 +61,8 @@ Route::post('/webhooks/stripe', [StripeWebhookController::class, 'handleWebhook'
 // Shopify Webhook
 Route::post('/webhooks/shopify/customers', [\App\Http\Controllers\API\ShopifyWebhookController::class, 'handleCustomers'])->name('api.webhooks.shopify.customers');
 Route::post('/webhooks/shopify/orders', [\App\Http\Controllers\API\ShopifyWebhookController::class, 'handleOrders'])->name('api.webhooks.shopify.orders');
+
+
 
 // Shopify OAuth Callback (Public route for Shopify to redirect to)
 Route::get('/owner/shopify/callback', [\App\Http\Controllers\API\Owner\IntegrationApiController::class, 'shopifyCallback'])->name('api.owner.shopify.callback');
@@ -109,6 +114,16 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::delete('/{knowledgeSource}', [KnowledgeSourceApiController::class, 'destroy']);
         });
 
+        // Automation Rules & SLAs (Requires Subscription)
+        Route::prefix('automations')->middleware(['subscribed'])->group(function () {
+            Route::apiResource('rules', AutomationRuleController::class);
+            Route::apiResource('slas', SlaPolicyController::class);
+            
+            // AI Automation Settings
+            Route::get('/settings', [\App\Http\Controllers\API\Owner\AiAutomationSettingController::class, 'show']);
+            Route::post('/settings', [\App\Http\Controllers\API\Owner\AiAutomationSettingController::class, 'update']);
+        });
+
         // Get Shopify Install URL (Requires Auth)
         Route::post('/shopify/install', [IntegrationApiController::class, 'shopifyInstall'])->middleware(['subscribed']);
 
@@ -137,6 +152,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::prefix('shared')->middleware(['subscribed'])->group(function () {
         Route::get('/tickets', [TicketController::class, 'index']);
         Route::get('/tickets/{id}', [TicketController::class, 'show']);
+        
+        // AI Auto Reply Endpoints
+        Route::post('/tickets/{id}/ai-reply', [TicketAiController::class, 'generateSuggestedReply']);
+        Route::post('/tickets/{id}/reply', [TicketAiController::class, 'sendReply']);
     });
 
     // Support Agent Routes

@@ -21,7 +21,8 @@ class Ticket extends Model
         'assigned',
         'customer_id',
         'owner_id',
-        'body'
+        'body',
+        'ai_suggested_reply'
     ];
 
     /**

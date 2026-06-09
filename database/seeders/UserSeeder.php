@@ -28,7 +28,6 @@ class UserSeeder extends Seeder
             'status' => 'active',
             'terms_accepted_at' => now(),
         ]);
-
         // 2. Create a Subscribed Owner
         $subscribedOwner = User::create([
             'name' => 'Subscribed Owner',
