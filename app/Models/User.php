@@ -156,18 +156,12 @@ class User extends Authenticatable
         }
 
         if ($this->parent_id) {
-            // If the parent is the owner, return parent_id
-            // Otherwise, we might need to go deeper, but for this app 
-            // usually it's Owner -> Manager -> Agent.
             $parent = $this->owner;
             if ($parent && $parent->user_type === 'owner') {
                 return $parent->id;
             }
-            
-            // Recursive check if needed, but let's keep it simple for now
             return $parent ? $parent->getTeamOwnerId() : $this->parent_id;
         }
-
         return $this->id;
     }
 
@@ -179,7 +173,7 @@ class User extends Authenticatable
         if ($this->user_type === 'owner') {
             return ! empty($this->getSetting('secret_key')) && ! empty($this->getSetting('ai_provider'));
         }
-
         return true;
     }
+
 }

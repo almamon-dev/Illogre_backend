@@ -109,12 +109,6 @@ export default function Index({ owners, auth }) {
                                             </td>
                                             <td className="px-7 py-5 text-right">
                                                 <div className="flex items-center justify-end gap-3">
-                                                    <Link
-                                                        href="#"
-                                                        className="h-[36px] inline-flex items-center bg-white border border-[#e3e4e8] text-[#2f3344] px-4 rounded-[6px] font-bold text-[13px] hover:border-[#673ab7] hover:text-[#673ab7] transition-all"
-                                                    >
-                                                        Details
-                                                    </Link>
                                                     <button className="w-8 h-8 flex items-center justify-center text-[#727586] hover:bg-red-50 hover:text-red-500 rounded-lg transition-all">
                                                         <Trash2 size={18} />
                                                     </button>
