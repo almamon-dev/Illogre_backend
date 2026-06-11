@@ -11,7 +11,6 @@ class AiAutomationSetting extends Model
         'mode',
         'human_led_threshold',
         'ai_assisted_threshold',
-        'ai_driven_threshold',
     ];
 
     /**
