@@ -22,7 +22,12 @@ class Ticket extends Model
         'customer_id',
         'owner_id',
         'body',
-        'ai_suggested_reply'
+        'ai_suggested_reply',
+        'ai_analysis'
+    ];
+
+    protected $casts = [
+        'ai_analysis' => 'array',
     ];
 
     /**

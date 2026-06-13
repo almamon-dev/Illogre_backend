@@ -37,16 +37,24 @@ class TicketController extends Controller
             if ($request->has('source')) {
                 $query->where('source', $request->source);
             }
+            if ($request->has('category')) {
+                $query->where('category', $request->category);
+            }
             if ($request->has('search')) {
                 $query->where('ticket_number', 'like', '%' . $request->search . '%')
                     ->orWhere('customer_name', 'like', '%' . $request->search . '%')
                     ->orWhere('subject', 'like', '%' . $request->search . '%');
             }
 
-            $tickets = $query->latest()->get();
+            $perPage = $request->get('per_page', 10);
+            $tickets = $query->latest()->paginate($perPage);
+            
+            $tickets->setCollection($tickets->getCollection()->map(function ($ticket) {
+                return new TicketResource($ticket);
+            }));
 
             return $this->sendResponse(
-                TicketResource::collection($tickets), 
+                $tickets, 
                 'Tickets fetched successfully.'
             );
         } catch (\Exception $e) {

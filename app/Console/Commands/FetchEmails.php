@@ -98,17 +98,22 @@ class FetchEmails extends Command
 
                 // Paginate to retrieve the newest messages (avoids slow/unsupported IMAP SORT command)
                 $this->info("Fetching unread messages...");
-                // Optimize: Ask IMAP server directly for only UNSEEN messages
+                // Optimize: Fetch latest messages and filter in PHP to avoid Gmail IMAP sync issues
                 $messages = $folder->query()
-                    ->unseen()
-                    ->leaveUnread()
+                    ->all()
+                    ->limit(10)
                     ->get();
                 
                 $count = $messages->count();
-                $this->info("Retrieved {$count} unread messages.");
+                $this->info("Retrieved {$count} recent messages to check.");
 
                 $processedCount = 0;
                 foreach ($messages as $message) {
+                    // Check if message is already seen
+                    if ($message->hasFlag('Seen')) {
+                        $this->info("Skipping read message: " . $message->getSubject());
+                        continue;
+                    }
 
                     $processedCount++;
                     $subject = $message->getSubject() ?? 'No Subject';
@@ -210,20 +215,29 @@ class FetchEmails extends Command
             ->limit(3)
             ->get();
 
-        // 4. Create the Ticket
+        // 4. Analyze using AI
+        $aiData = \App\Services\OpenAIService::analyzeTicket($subject, $body, $ownerId, $customer->name);
+        
+        $category = $aiData['category'] ?? 'Inquiry';
+        $confidence = $aiData['confidence'] ?? ($recentOrders && $recentOrders->count() > 0 ? 90 : 40);
+        $suggestedReply = $aiData['suggested_reply'] ?? null;
+
+        // 5. Create the Ticket
         $ticket = Ticket::create([
             'ticket_number' => 'TIC-' . strtoupper(uniqid()),
             'customer_name' => $customer->name,
             'customer_email' => $customer->email,
             'customer_id' => $customer->id,
             'subject' => $subject,
-            'body' => strip_tags($body), // clean up html tags for database body
-            'category' => 'Inquiry',
+            'body' => $body, // Keep original user content without stripping HTML
+            'category' => $category,
             'source' => 'Email',
-            'confidence' => $recentOrders && $recentOrders->count() > 0 ? 90 : 40,
+            'confidence' => $confidence,
             'status' => 'Pending',
             'assigned' => 'AI Agent',
             'owner_id' => $ownerId,
+            'ai_suggested_reply' => $suggestedReply,
+            'ai_analysis' => $aiData,
         ]);
 
         $this->info("Ticket created: {$ticket->ticket_number} for customer: {$customer->name}");

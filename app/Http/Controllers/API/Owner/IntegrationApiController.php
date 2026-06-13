@@ -222,9 +222,20 @@ class IntegrationApiController extends Controller
     public function disconnect(Request $request, $id): JsonResponse
     {
         $integration = $request->user()->integrations()->findOrFail($id);
+        $provider = $integration->provider;
+        $ownerId = $integration->user_id;
+
+        // Clean up related data based on provider
+        if ($provider === 'shopify') {
+            \App\Models\Order::where('owner_id', $ownerId)->whereNotNull('shopify_order_id')->delete();
+            \App\Models\Customer::where('owner_id', $ownerId)->whereNotNull('shopify_customer_id')->delete();
+        } elseif (in_array($provider, ['gmail', 'outlook'])) {
+            \App\Models\Ticket::where('owner_id', $ownerId)->where('source', 'Email')->delete();
+        }
+
         $integration->delete();
 
-        return $this->sendResponse([], 'Integration disconnected successfully.');
+        return $this->sendResponse([], ucfirst($provider) . ' integration disconnected and related data removed successfully.');
     }
 
     /**
@@ -415,6 +426,7 @@ class IntegrationApiController extends Controller
                             'name' => trim(($customerPayload['first_name'] ?? '') . ' ' . ($customerPayload['last_name'] ?? '')),
                             'email' => $customerPayload['email'] ?? null,
                             'phone' => $customerPayload['phone'] ?? null,
+                            'country' => $customerPayload['default_address']['country'] ?? null,
                         ]
                     );
                     $customerId = $customer->id;
