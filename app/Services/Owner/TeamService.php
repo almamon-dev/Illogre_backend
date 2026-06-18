@@ -17,8 +17,8 @@ class TeamService
     {
         $owner = User::with(['members' => function ($query) {
             $query->withCount([
-                'tickets',
-                'tickets as resolved_tickets_count' => function ($query) {
+                'assignedTickets as tickets_count',
+                'assignedTickets as resolved_tickets_count' => function ($query) {
                     $query->where('status', 'Resolved');
                 },
             ])->latest();

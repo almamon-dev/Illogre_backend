@@ -26,6 +26,7 @@ class LoginResource extends JsonResource
             'email_verified_at' => $this->email_verified_at,
             'is_verified' => ! is_null($this->email_verified_at),
             'is_subscribed' => $this->isSubscribed(),
+            'is_ai_configured' => $this->isAiConfigured(),
             'created_at' => $this->created_at?->toDateTimeString(),
             'updated_at' => $this->updated_at?->toDateTimeString(),
             'next_step' => $this->whenNotNull($this->isSubscribed() ? null : 'checkout'),

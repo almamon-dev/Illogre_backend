@@ -97,11 +97,19 @@ class User extends Authenticatable
     }
 
     /**
-     * Get the tickets for the user.
+     * Get the tickets for the user (Owner).
      */
     public function tickets()
     {
         return $this->hasMany(Ticket::class, 'owner_id');
+    }
+
+    /**
+     * Get the tickets assigned to this user by name.
+     */
+    public function assignedTickets()
+    {
+        return $this->hasMany(Ticket::class, 'assigned', 'name');
     }
 
     /**
@@ -170,10 +178,7 @@ class User extends Authenticatable
      */
     public function isAiConfigured(): bool
     {
-        if ($this->user_type === 'owner') {
-            return ! empty($this->getSetting('secret_key')) && ! empty($this->getSetting('ai_provider'));
-        }
-        return true;
+        return !empty(env('OPENAI_API_KEY')) && !empty(env('AI_PROVIDER'));
     }
 
 }

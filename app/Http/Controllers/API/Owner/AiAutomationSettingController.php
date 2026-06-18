@@ -48,10 +48,21 @@ class AiAutomationSettingController extends Controller
             ['mode' => 'copilot', 'human_led_threshold' => 60, 'ai_assisted_threshold' => 80]
         );
 
+        $newMode = $request->input('mode', $setting->mode);
+        $newHuman = $request->input('human_led_threshold', $setting->human_led_threshold);
+        $newAi = $request->input('ai_assisted_threshold', $setting->ai_assisted_threshold);
+
+        $modeSettings = $setting->mode_settings ?? [];
+        $modeSettings[$newMode] = [
+            'human_led_threshold' => $newHuman,
+            'ai_assisted_threshold' => $newAi,
+        ];
+
         $setting->update([
-            'mode'                  => $request->input('mode', $setting->mode),
-            'human_led_threshold'   => $request->input('human_led_threshold', $setting->human_led_threshold),
-            'ai_assisted_threshold' => $request->input('ai_assisted_threshold', $setting->ai_assisted_threshold),
+            'mode'                  => $newMode,
+            'human_led_threshold'   => $newHuman,
+            'ai_assisted_threshold' => $newAi,
+            'mode_settings'         => $modeSettings
         ]);
 
         $setting->refresh();
@@ -76,9 +87,16 @@ class AiAutomationSettingController extends Controller
             ['mode' => 'copilot', 'human_led_threshold' => 60, 'ai_assisted_threshold' => 80]
         );
 
+        $modeSettings = $setting->mode_settings ?? [];
+        $modeSettings[$setting->mode] = [
+            'human_led_threshold' => $request->human_led_threshold,
+            'ai_assisted_threshold' => $request->ai_assisted_threshold,
+        ];
+
         $setting->update([
             'human_led_threshold' => $request->human_led_threshold,
             'ai_assisted_threshold' => $request->ai_assisted_threshold,
+            'mode_settings' => $modeSettings
         ]);
         $setting->refresh();
 
@@ -90,6 +108,17 @@ class AiAutomationSettingController extends Controller
      */
     private function buildResponse($setting)
     {
+        $modeSettings = $setting->mode_settings ?? [];
+        
+        $supHuman = $modeSettings['supervised']['human_led_threshold'] ?? 80;
+        $supAi = $modeSettings['supervised']['ai_assisted_threshold'] ?? 95;
+        
+        $copHuman = $modeSettings['copilot']['human_led_threshold'] ?? 60;
+        $copAi = $modeSettings['copilot']['ai_assisted_threshold'] ?? 80;
+        
+        $autoHuman = $modeSettings['autopilot']['human_led_threshold'] ?? 20;
+        $autoAi = $modeSettings['autopilot']['ai_assisted_threshold'] ?? 60;
+
         return [
             'human_led_threshold'   => $setting->human_led_threshold,
             'ai_assisted_threshold' => $setting->ai_assisted_threshold,
@@ -101,10 +130,7 @@ class AiAutomationSettingController extends Controller
                     'title' => 'Supervised', 
                     'description' => 'AI acts only on very high confidence cases', 
                     'is_selected' => $setting->mode === 'supervised',
-                    'zones' => $this->getZones(
-                        $setting->mode === 'supervised' ? $setting->human_led_threshold : 80, 
-                        $setting->mode === 'supervised' ? $setting->ai_assisted_threshold : 95
-                    )
+                    'zones' => $this->getZones($supHuman, $supAi)
                 ],
                 [
                     'id' => 2, 
@@ -112,10 +138,7 @@ class AiAutomationSettingController extends Controller
                     'title' => 'Co-pilot', 
                     'description' => 'Balanced between AI and human review', 
                     'is_selected' => $setting->mode === 'copilot',
-                    'zones' => $this->getZones(
-                        $setting->mode === 'copilot' ? $setting->human_led_threshold : 60, 
-                        $setting->mode === 'copilot' ? $setting->ai_assisted_threshold : 80
-                    )
+                    'zones' => $this->getZones($copHuman, $copAi)
                 ],
                 [
                     'id' => 3, 
@@ -123,10 +146,7 @@ class AiAutomationSettingController extends Controller
                     'title' => 'Autopilot', 
                     'description' => 'AI handles most tickets autonomously', 
                     'is_selected' => $setting->mode === 'autopilot',
-                    'zones' => $this->getZones(
-                        $setting->mode === 'autopilot' ? $setting->human_led_threshold : 20, 
-                        $setting->mode === 'autopilot' ? $setting->ai_assisted_threshold : 60
-                    )
+                    'zones' => $this->getZones($autoHuman, $autoAi)
                 ],
             ],
         ];

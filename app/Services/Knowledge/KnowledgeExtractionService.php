@@ -40,6 +40,9 @@ class KnowledgeExtractionService
                 'error_message' => null,
             ]);
 
+            // Create Chunks
+            $this->createChunks($source, $content);
+
             return true;
 
         } catch (Exception $e) {
@@ -126,5 +129,50 @@ class KnowledgeExtractionService
         }
 
         return strip_tags($html);
+    }
+
+    /**
+     * Split text into chunks and save to database.
+     */
+    private function createChunks(KnowledgeSource $source, string $content): void
+    {
+        // Simple paragraph splitting for now
+        $paragraphs = array_filter(array_map('trim', explode("\n", $content)));
+        
+        $chunkIndex = 1;
+        $currentChunk = '';
+        $maxLength = 1000; // rough character limit per chunk
+
+        foreach ($paragraphs as $paragraph) {
+            if (empty($paragraph)) continue;
+
+            if (strlen($currentChunk) + strlen($paragraph) > $maxLength) {
+                // Save current chunk
+                if (!empty(trim($currentChunk))) {
+                    \App\Models\KnowledgeChunk::create([
+                        'knowledge_source_id' => $source->id,
+                        'title' => 'Article Section ' . $chunkIndex,
+                        'content' => trim($currentChunk),
+                        'category' => 'General',
+                        'status' => 'Indexed', // Or Processing if we add OpenAI vectors later
+                    ]);
+                    $chunkIndex++;
+                }
+                $currentChunk = $paragraph;
+            } else {
+                $currentChunk .= "\n\n" . $paragraph;
+            }
+        }
+
+        // Save the last chunk
+        if (!empty(trim($currentChunk))) {
+            \App\Models\KnowledgeChunk::create([
+                'knowledge_source_id' => $source->id,
+                'title' => 'Article Section ' . $chunkIndex,
+                'content' => trim($currentChunk),
+                'category' => 'General',
+                'status' => 'Indexed',
+            ]);
+        }
     }
 }

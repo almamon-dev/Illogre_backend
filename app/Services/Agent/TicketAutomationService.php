@@ -13,21 +13,11 @@ class TicketAutomationService
      */
     public function processIncomingTicket(Ticket $ticket)
     {
-        // 1. Simulate AI Analysis (In real world, call OpenAI/Anthropic API here)
-        $aiAnalysis = $this->simulateAiAnalysis($ticket->body);
-
-        // Update ticket with AI findings
-        $ticket->update([
-            'confidence' => $aiAnalysis['confidence_score'],
-            'category'   => $aiAnalysis['category'],
-            'priority'   => $aiAnalysis['risk_level'],
-            // 'summary' => $aiAnalysis['summary'], // Add summary column to DB if needed
-        ]);
-
-        $suggestedReply = $aiAnalysis['suggested_reply'];
+        $suggestedReply = $ticket->ai_suggested_reply;
+        $score = $ticket->confidence;
 
         // 2. Fetch AI Settings for the Owner
-        $settings = AiAutomationSetting::where('user_id', $ticket->owner_id)->first();
+       $settings = AiAutomationSetting::where('user_id', $ticket->owner_id)->first();
 
         if (!$settings) {
             // Default to Human-led if no settings exist
@@ -36,8 +26,6 @@ class TicketAutomationService
         }
 
         // 3. Decision Engine Based on Mode and Confidence Score
-        $score = $aiAnalysis['confidence_score'];
-
         if ($score <= $settings->human_led_threshold) {
             // Human-Led Zone
             $this->assignToHuman($ticket);
@@ -69,7 +57,6 @@ class TicketAutomationService
         $ticket->update([
             'status' => 'Pending Review',
             'assigned' => 'Support Agent',
-            // Here you might store the $suggestedReply in a separate table like `ticket_drafts` or a field
         ]);
         Log::info("Ticket {$ticket->id} assigned for Agent Review (AI Assisted). Draft reply generated.");
     }
@@ -81,23 +68,21 @@ class TicketAutomationService
             'assigned' => 'AI Agent',
         ]);
         
-        // Call Email/WhatsApp service to actually SEND the $suggestedReply to the customer
-        
-        Log::info("Ticket {$ticket->id} resolved autonomously by AI. Reply sent.");
-    }
+        if ($suggestedReply) {
+            \App\Models\TicketMessage::create([
+                'ticket_id' => $ticket->id,
+                'sender_name' => 'AI Agent',
+                'body' => $suggestedReply,
+                'is_ai' => true,
+                'is_internal' => false,
+            ]);
+        }
 
-    /**
-     * Mock AI Response. Replace with actual LLM call.
-     */
-    private function simulateAiAnalysis($text)
-    {
-        // Simple mock logic for demonstration
-        return [
-            'confidence_score' => rand(40, 95),
-            'category' => 'General Inquiry',
-            'risk_level' => 'Medium',
-            'summary' => 'Customer is asking a general question.',
-            'suggested_reply' => 'Hello! Thank you for reaching out. Based on your message, here is the information you need...',
-        ];
+        // Call Email service to actually SEND the $suggestedReply to the customer
+        if ($ticket->customer_email && $suggestedReply) {
+            \Illuminate\Support\Facades\Mail::to($ticket->customer_email)->send(new \App\Mail\TicketReplyMail($suggestedReply, $ticket));
+        }
+        
+        Log::info("Ticket {$ticket->id} resolved autonomously by AI. Reply sent to {$ticket->customer_email}.");
     }
 }

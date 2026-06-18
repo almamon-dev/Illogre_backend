@@ -18,6 +18,7 @@ return new class extends Migration
             $table->integer('human_led_threshold')->default(60);  // 0-60%
             $table->integer('ai_assisted_threshold')->default(80); // 60-80%
             $table->integer('ai_driven_threshold')->default(100);  // 80-100%
+            $table->json('mode_settings')->nullable();
             $table->timestamps();
             
             // Each user (owner) should have only one settings row

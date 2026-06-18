@@ -36,17 +36,32 @@ class TicketAiController extends Controller
         $ticket = Ticket::findOrFail($id);
 
         $request->validate([
-            'reply_text' => 'required|string'
+            'reply_text' => 'required|string',
+            'is_internal' => 'boolean'
         ]);
 
-        // Here you would typically integrate with Mail / WhatsApp API to actually send the message.
-        // Mail::to($ticket->customer_email)->send(new TicketReplyMail($request->reply_text));
+        $isInternal = $request->input('is_internal', false);
+
+        // Save the message in the database
+        $message = \App\Models\TicketMessage::create([
+            'ticket_id' => $ticket->id,
+            'sender_name' => $request->user()->name,
+            'body' => $request->reply_text,
+            'is_ai' => false,
+            'is_internal' => $isInternal,
+        ]);
+
+        // Only send email if it's a public reply
+        if (!$isInternal && $ticket->customer_email) {
+            \Illuminate\Support\Facades\Mail::to($ticket->customer_email)
+                ->send(new \App\Mail\TicketReplyMail($request->reply_text, $ticket));
+        }
 
         $ticket->update([
-            'status' => 'Resolved',
+            'status' => $isInternal ? $ticket->status : 'Resolved',
             'assigned' => $request->user()->name // Agent who approved/sent it
         ]);
 
-        return $this->sendResponse($ticket, 'Reply sent to the customer successfully.');
+        return $this->sendResponse($message, 'Reply added successfully.');
     }
 }

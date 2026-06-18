@@ -10,6 +10,43 @@ use Inertia\Inertia;
 class SettingController extends Controller
 {
     /**
+     * AI Settings
+     */
+    public function aiSettings()
+    {
+        $settings = [
+            'ai_provider' => env('AI_PROVIDER', 'openai'),
+            'openai_api_key' => env('OPENAI_API_KEY', ''),
+            'ai_model' => env('AI_MODEL', 'gpt-4o'),
+        ];
+
+        return Inertia::render('Admin/Settings/System/Ai', [
+            'settings' => $settings,
+        ]);
+    }
+
+    /**
+     * Update AI Settings
+     */
+    public function updateAiSettings(Request $request)
+    {
+        $data = $request->validate([
+            'ai_provider' => 'required|string',
+            'openai_api_key' => 'nullable|string',
+            'ai_model' => 'nullable|string',
+        ]);
+
+        $envData = [
+            'AI_PROVIDER' => $data['ai_provider'],
+            'OPENAI_API_KEY' => $data['openai_api_key'] ?? '',
+            'AI_MODEL' => $data['ai_model'] ?? 'gpt-4o',
+        ];
+
+        $this->updateEnv($envData);
+
+        return redirect()->back()->with('success', 'AI settings updated successfully.');
+    }
+    /**
      * Website System Settings
      */
     public function websiteSystem()

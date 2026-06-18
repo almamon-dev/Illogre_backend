@@ -11,6 +11,11 @@ class AiAutomationSetting extends Model
         'mode',
         'human_led_threshold',
         'ai_assisted_threshold',
+        'mode_settings'
+    ];
+
+    protected $casts = [
+        'mode_settings' => 'array'
     ];
 
     /**

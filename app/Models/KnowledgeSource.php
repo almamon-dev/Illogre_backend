@@ -26,4 +26,9 @@ class KnowledgeSource extends Model
     {
         return $this->belongsTo(User::class);
     }
+
+    public function chunks()
+    {
+        return $this->hasMany(KnowledgeChunk::class);
+    }
 }

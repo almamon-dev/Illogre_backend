@@ -97,8 +97,8 @@ class ManagerService
         $agents = User::where('parent_id', $managerId)
             ->where('role', 'Support Agent')
             ->withCount([
-                'tickets',
-                'tickets as resolved_tickets_count' => function ($query) {
+                'assignedTickets as tickets_count',
+                'assignedTickets as resolved_tickets_count' => function ($query) {
                     $query->where('status', 'Resolved');
                 }
             ])

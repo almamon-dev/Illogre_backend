@@ -19,6 +19,8 @@ return new class extends Migration
             $table->string('customer_avatar')->nullable();
             $table->string('subject');
             $table->text('body')->nullable();
+            $table->text('ai_suggested_reply')->nullable();
+            $table->json('ai_analysis')->nullable();
             $table->string('category')->nullable();
             $table->string('source')->default('Chat');
             $table->integer('confidence')->default(0);

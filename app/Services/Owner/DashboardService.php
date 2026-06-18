@@ -5,6 +5,7 @@ namespace App\Services\Owner;
 use App\Models\Order;
 use App\Models\Ticket;
 use Illuminate\Support\Facades\Auth;
+use Carbon\Carbon;
 
 class DashboardService
 {
@@ -59,30 +60,73 @@ class DashboardService
                 ];
             });
 
+        // Calculate Changes (Last 7 days vs Previous 7 days)
+        $currTickets = Ticket::where('owner_id', $ownerId)->where('created_at', '>=', Carbon::now()->subDays(7))->count();
+        $prevTickets = Ticket::where('owner_id', $ownerId)->whereBetween('created_at', [Carbon::now()->subDays(14), Carbon::now()->subDays(7)])->count();
+        $ticketsChange = $prevTickets > 0 ? round((($currTickets - $prevTickets) / $prevTickets) * 100, 1) : ($currTickets > 0 ? 100 : 0);
+
+        $currAi = Ticket::where('owner_id', $ownerId)->where('status', 'Resolved')->where('assigned', 'AI Agent')->where('updated_at', '>=', Carbon::now()->subDays(7))->count();
+        $prevAi = Ticket::where('owner_id', $ownerId)->where('status', 'Resolved')->where('assigned', 'AI Agent')->whereBetween('updated_at', [Carbon::now()->subDays(14), Carbon::now()->subDays(7)])->count();
+        $aiChange = $prevAi > 0 ? round((($currAi - $prevAi) / $prevAi) * 100, 1) : ($currAi > 0 ? 100 : 0);
+
+        $currWaiting = Ticket::where('owner_id', $ownerId)->where('status', 'Pending')->where('updated_at', '>=', Carbon::now()->subDays(7))->count();
+        $prevWaiting = Ticket::where('owner_id', $ownerId)->where('status', 'Pending')->whereBetween('updated_at', [Carbon::now()->subDays(14), Carbon::now()->subDays(7)])->count();
+        $waitingChange = $prevWaiting > 0 ? round((($currWaiting - $prevWaiting) / $prevWaiting) * 100, 1) : ($currWaiting > 0 ? 100 : 0);
+
+        $currSuccessRate = $currTickets > 0 ? round(($currAi / $currTickets) * 100, 1) : 0;
+        $prevSuccessRate = $prevTickets > 0 ? round(($prevAi / $prevTickets) * 100, 1) : 0;
+        $successRateChange = $currSuccessRate - $prevSuccessRate;
+
+        // Dynamic Charts
+        $ticketVolume = [];
+        for ($i = 6; $i >= 0; $i--) {
+            $date = Carbon::now()->subDays($i);
+            $count = Ticket::where('owner_id', $ownerId)
+                           ->whereDate('created_at', $date->toDateString())
+                           ->count();
+            $ticketVolume[] = [
+                'day' => $date->format('D'),
+                'value' => $count
+            ];
+        }
+
+        $aiResolutionRate = [];
+        for ($i = 3; $i >= 0; $i--) {
+            $startOfWeek = Carbon::now()->subWeeks($i)->startOfWeek();
+            $endOfWeek = Carbon::now()->subWeeks($i)->endOfWeek();
+
+            $total = Ticket::where('owner_id', $ownerId)
+                           ->whereBetween('created_at', [$startOfWeek, $endOfWeek])
+                           ->count();
+            
+            $resolved = Ticket::where('owner_id', $ownerId)
+                              ->where('status', 'Resolved')
+                              ->where('assigned', 'AI Agent')
+                              ->whereBetween('updated_at', [$startOfWeek, $endOfWeek])
+                              ->count();
+
+            $aiResolutionRate[] = [
+                'week' => 'Week ' . (4 - $i),
+                'resolved' => $resolved,
+                'total' => $total,
+            ];
+        }
+
         return [
             'stats' => [
                 'total_tickets' => $totalTickets,
+                'total_tickets_change' => $ticketsChange,
                 'ai_resolved' => $aiResolved,
+                'ai_resolved_change' => $aiChange,
                 'waiting_approval' => $waitingApproval,
+                'waiting_approval_change' => $waitingChange,
                 'success_rate' => $totalTickets > 0 ? round(($aiResolved / $totalTickets) * 100, 1) : 0,
+                'success_rate_change' => $successRateChange,
                 'time_saved' => $aiResolved * 0.5, // Mock: 30 mins per AI resolved ticket
             ],
             'charts' => [
-                'ticket_volume' => [
-                    ['day' => 'Mon', 'value' => 210],
-                    ['day' => 'Tue', 'value' => 280],
-                    ['day' => 'Wed', 'value' => 400],
-                    ['day' => 'Thu', 'value' => 320],
-                    ['day' => 'Fri', 'value' => 250],
-                    ['day' => 'Sat', 'value' => 380],
-                    ['day' => 'Sun', 'value' => 450],
-                ],
-                'ai_resolution_rate' => [
-                    ['week' => 'Week 1', 'resolved' => 380, 'total' => 600],
-                    ['week' => 'Week 2', 'resolved' => 250, 'total' => 500],
-                    ['week' => 'Week 3', 'resolved' => 450, 'total' => 600],
-                    ['week' => 'Week 4', 'resolved' => 280, 'total' => 450],
-                ],
+                'ticket_volume' => $ticketVolume,
+                'ai_resolution_rate' => $aiResolutionRate,
             ],
             'recent_tickets' => $recentTickets,
         ];

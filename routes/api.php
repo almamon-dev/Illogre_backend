@@ -1,167 +1,175 @@
 <?php
 
 use App\Http\Controllers\API\Admin\PricingPlanController;
+use App\Http\Controllers\API\Agent\TicketAiController;
 use App\Http\Controllers\API\Agent\TicketController;
 use App\Http\Controllers\API\Auth\AuthApiController;
+use App\Http\Controllers\API\InboundEmailController;
 use App\Http\Controllers\API\Manager\AgentController;
+use App\Http\Controllers\API\Owner\AiAutomationSettingController;
+use App\Http\Controllers\API\Owner\AutomationRuleController;
 use App\Http\Controllers\API\Owner\BillingController;
 use App\Http\Controllers\API\Owner\CustomerController;
 use App\Http\Controllers\API\Owner\DashboardController;
 use App\Http\Controllers\API\Owner\IntegrationApiController;
 use App\Http\Controllers\API\Owner\KnowledgeSourceApiController;
 use App\Http\Controllers\API\Owner\SettingsApiController;
-use App\Http\Controllers\API\Owner\ShopifyController;
+use App\Http\Controllers\API\Owner\SlaPolicyController;
 use App\Http\Controllers\API\Owner\TeamController;
 use App\Http\Controllers\API\PricingPlanApiController;
-use App\Http\Controllers\API\Owner\AutomationRuleController;
-use App\Http\Controllers\API\Owner\SlaPolicyController;
-use App\Http\Controllers\API\Agent\TicketAiController;
-use App\Http\Controllers\ShopifyWebhookController as AppShopifyWebhookController;
+use App\Http\Controllers\API\ShopifyWebhookController;
 use App\Http\Controllers\StripeWebhookController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
+// --- Public APIs ---
+Route::get('/pricing-plans',               [PricingPlanApiController::class, 'index']);
+Route::get('/owner/shopify/callback',      [IntegrationApiController::class, 'shopifyCallback'])->name('api.owner.shopify.callback');
 
-Route::get('/user', function (Request $request) {
-    return $request->user();
-})->middleware('auth:sanctum');
+// --- Webhooks ---
+Route::prefix('webhooks')->group(function () {
+    Route::post('/inbound-email',          [InboundEmailController::class, 'handle']);
+    Route::post('/stripe',                 [StripeWebhookController::class, 'handleWebhook']);
+    Route::post('/shopify/customers',      [ShopifyWebhookController::class, 'handleCustomers'])->name('api.webhooks.shopify.customers');
+    Route::post('/shopify/orders',         [ShopifyWebhookController::class, 'handleOrders'])->name('api.webhooks.shopify.orders');
+});
 
-// Pricing Plans
-Route::get('/pricing-plans', [PricingPlanApiController::class, 'index']);
-
-// Public Auth Routes
+// --- Auth Flow ---
 Route::prefix('auth')->group(function () {
-    // Registration Flow
     Route::prefix('register')->group(function () {
-        Route::post('/', [AuthApiController::class, 'registerApi']);
-        Route::post('/verify-otp', [AuthApiController::class, 'verifyRegistrationOtp']);
-        Route::post('/resend-otp', [AuthApiController::class, 'resendOtpApi']);
-        Route::post('/checkout', [AuthApiController::class, 'initiateCheckout']);
+        Route::post('/',                   [AuthApiController::class, 'registerApi']);
+        Route::post('/verify-otp',         [AuthApiController::class, 'verifyRegistrationOtp']);
+        Route::post('/resend-otp',         [AuthApiController::class, 'resendOtpApi']);
+        Route::post('/checkout',           [AuthApiController::class, 'initiateCheckout']);
     });
 
-    // Login
-    Route::post('/login', [AuthApiController::class, 'loginApi']);
-
-    // Password Reset Flow
-    Route::post('/forgot-password', [AuthApiController::class, 'forgotPasswordApi']);
-    Route::post('/verify-otp', [AuthApiController::class, 'verifyOtpApi']);
-    Route::post('/reset-password', [AuthApiController::class, 'resetPasswordApi']);
-
-    // Invitations
-    Route::post('/accept-invitation/{token}', [AuthApiController::class, 'acceptInvitation']);
+    Route::post('/login',                  [AuthApiController::class, 'loginApi']);
+    Route::post('/forgot-password',        [AuthApiController::class, 'forgotPasswordApi']);
+    Route::post('/verify-otp',             [AuthApiController::class, 'verifyOtpApi']);
+    Route::post('/reset-password',         [AuthApiController::class, 'resetPasswordApi']);
+    Route::post('/accept-invitation/{t}',  [AuthApiController::class, 'acceptInvitation']);
     Route::get('/accept-agent-invitation', [AuthApiController::class, 'acceptAgentInvitation']);
 });
 
-// Inbound Email Webhook
-Route::post('/webhooks/inbound-email', [\App\Http\Controllers\API\InboundEmailController::class, 'handle']);
-
-// Stripe Webhook
-Route::post('/webhooks/stripe', [StripeWebhookController::class, 'handleWebhook']);
-
-// Shopify Webhook
-Route::post('/webhooks/shopify/customers', [\App\Http\Controllers\API\ShopifyWebhookController::class, 'handleCustomers'])->name('api.webhooks.shopify.customers');
-Route::post('/webhooks/shopify/orders', [\App\Http\Controllers\API\ShopifyWebhookController::class, 'handleOrders'])->name('api.webhooks.shopify.orders');
-
-
-
-// Shopify OAuth Callback (Public route for Shopify to redirect to)
-Route::get('/owner/shopify/callback', [\App\Http\Controllers\API\Owner\IntegrationApiController::class, 'shopifyCallback'])->name('api.owner.shopify.callback');
-
-// Protected Routes
+// --- Authenticated APIs ---
 Route::middleware('auth:sanctum')->group(function () {
-    Route::post('/auth/logout', [AuthApiController::class, 'logoutApi']);
+    
+    // Auth Status
+    Route::get('/user',                    fn(Request $request) => $request->user());
+    Route::post('/auth/logout',            [AuthApiController::class, 'logoutApi']);
 
-    // Owner Dashboard
-    Route::prefix('owner')->middleware(['owner'])->group(function () {
-        Route::get('/dashboard/overview', [DashboardController::class, 'index']);
-        Route::get('/billing/overview', [BillingController::class, 'index']);
-        Route::post('/billing/checkout', [BillingController::class, 'checkout']);
-        Route::post('/billing/portal', [BillingController::class, 'portal']);
-        Route::post('/billing/cancel', [BillingController::class, 'cancel']);
-        Route::post('/billing/resume', [BillingController::class, 'resume']);
-        Route::post('/billing/swap', [BillingController::class, 'swap']);
-
-        // Team Management (Requires Subscription)
-        Route::middleware(['subscribed'])->group(function () {
-            Route::get('/team', [TeamController::class, 'index']);
-            Route::post('/team/invite', [TeamController::class, 'invite']);
-            Route::patch('/team/{id}', [TeamController::class, 'update']);
-            Route::delete('/team/{id}', [TeamController::class, 'destroy']);
-        });
-
-        // Settings Management
-        Route::prefix('settings')->group(function () {
-            Route::get('/', [SettingsApiController::class, 'index']);
-            Route::patch('/general', [SettingsApiController::class, 'updateGeneral']);
-            Route::patch('/workspace', [SettingsApiController::class, 'updateWorkspace']);
-            Route::patch('/ai', [SettingsApiController::class, 'updateAI']);
-            Route::patch('/notifications', [SettingsApiController::class, 'updateNotifications']);
-            Route::patch('/security', [SettingsApiController::class, 'updateSecurity']);
-        });
-        // Customer Management
-        Route::prefix('customers')->middleware(['subscribed'])->group(function () {
-            Route::get('/', [CustomerController::class, 'index']);
-            Route::post('/', [CustomerController::class, 'store']);
-            Route::get('/{id}', [CustomerController::class, 'show']);
-            Route::patch('/{id}', [CustomerController::class, 'update']);
-            Route::delete('/{id}', [CustomerController::class, 'destroy']);
-        });
-
-        // Knowledge Base (Requires Subscription)
-        Route::prefix('knowledge-base')->middleware(['subscribed'])->group(function () {
-            Route::get('/', [KnowledgeSourceApiController::class, 'index']);
-            Route::post('/', [KnowledgeSourceApiController::class, 'store']);
-            Route::delete('/{knowledgeSource}', [KnowledgeSourceApiController::class, 'destroy']);
-        });
-
-        // Automation Rules & SLAs (Requires Subscription)
-        Route::prefix('automations')->middleware(['subscribed'])->group(function () {
-            Route::apiResource('rules', AutomationRuleController::class);
-            Route::apiResource('slas', SlaPolicyController::class);
-            
-            // AI Automation Settings
-            Route::get('/settings', [\App\Http\Controllers\API\Owner\AiAutomationSettingController::class, 'show']);
-            Route::post('/settings', [\App\Http\Controllers\API\Owner\AiAutomationSettingController::class, 'update']);
-        });
-
-        // Get Shopify Install URL (Requires Auth)
-        Route::post('/shopify/install', [IntegrationApiController::class, 'shopifyInstall'])->middleware(['subscribed']);
-
-        // Integrations (Requires Subscription)
-        Route::prefix('integrations')->middleware(['subscribed'])->group(function () {
-            Route::get('/', [IntegrationApiController::class, 'index']);
-            Route::post('/connect', [IntegrationApiController::class, 'connect']);
-            Route::post('/{provider}/connect', [IntegrationApiController::class, 'connect']);
-            Route::delete('/{id}', [IntegrationApiController::class, 'disconnect']);
-        });
-    });
-
-    // Admin Routes
+    // Admin (Super Admin)
     Route::prefix('admin')->group(function () {
-        Route::post('/pricing-plans', [PricingPlanController::class, 'store']);
+        Route::post('/pricing-plans',      [PricingPlanController::class, 'store']);
     });
 
-    // Support Manager Routes (Requires Subscription from Owner)
-    Route::prefix('manager')->middleware(['support_manager', 'subscribed'])->group(function () {
-        Route::get('/agents', [AgentController::class, 'index']);
-        Route::post('/agents', [AgentController::class, 'store']);
-        Route::put('/agents/{id}', [AgentController::class, 'update']);
-        Route::delete('/agents/{id}', [AgentController::class, 'destroy']);
+    // Owner (Team Subscriber)
+    Route::prefix('owner')->middleware(['owner'])->group(function () {
+        Route::get('/dashboard/overview',  [DashboardController::class, 'index']);
+        Route::post('/shopify/install',    [IntegrationApiController::class, 'shopifyInstall'])->middleware(['subscribed']);
+        
+        Route::prefix('billing')->group(function () {
+            Route::get('/overview',        [BillingController::class, 'index']);
+            Route::post('/checkout',       [BillingController::class, 'checkout']);
+            Route::post('/portal',         [BillingController::class, 'portal']);
+            Route::post('/cancel',         [BillingController::class, 'cancel']);
+            Route::post('/resume',         [BillingController::class, 'resume']);
+            Route::post('/swap',           [BillingController::class, 'swap']);
+        });
+
+        Route::prefix('settings')->group(function () {
+            Route::get('/',                [SettingsApiController::class, 'index']);
+            Route::patch('/general',       [SettingsApiController::class, 'updateGeneral']);
+            Route::patch('/workspace',     [SettingsApiController::class, 'updateWorkspace']);
+            Route::patch('/ai',            [SettingsApiController::class, 'updateAI']);
+            Route::patch('/notifications', [SettingsApiController::class, 'updateNotifications']);
+            Route::patch('/security',      [SettingsApiController::class, 'updateSecurity']);
+        });
+
+        // Features requiring active subscription
+        Route::middleware(['subscribed'])->group(function () {
+            Route::prefix('team')->group(function () {
+                Route::get('/',            [TeamController::class, 'index']);
+                Route::post('/invite',     [TeamController::class, 'invite']);
+                Route::patch('/{id}',      [TeamController::class, 'update']);
+                Route::delete('/{id}',     [TeamController::class, 'destroy']);
+            });
+
+            Route::prefix('customers')->middleware(['ai_configured'])->group(function () {
+                Route::get('/',            [CustomerController::class, 'index']);
+                Route::post('/',           [CustomerController::class, 'store']);
+                Route::get('/{id}',        [CustomerController::class, 'show']);
+                Route::patch('/{id}',      [CustomerController::class, 'update']);
+                Route::delete('/{id}',     [CustomerController::class, 'destroy']);
+            });
+
+            Route::prefix('knowledge-base')->middleware(['ai_configured'])->group(function () {
+                Route::get('/',            [KnowledgeSourceApiController::class, 'index']);
+                Route::post('/',           [KnowledgeSourceApiController::class, 'store']);
+                Route::delete('/{kSource}',[KnowledgeSourceApiController::class, 'destroy']);
+            });
+
+            Route::prefix('automations')->middleware(['ai_configured'])->group(function () {
+                Route::apiResource('rules',AutomationRuleController::class);
+                Route::apiResource('slas', SlaPolicyController::class);
+                Route::get('/settings',    [AiAutomationSettingController::class, 'show']);
+                Route::post('/settings',   [AiAutomationSettingController::class, 'update']);
+            });
+
+            Route::prefix('integrations')->group(function () {
+                Route::get('/',            [IntegrationApiController::class, 'index']);
+                Route::post('/connect',    [IntegrationApiController::class, 'connect']);
+                Route::post('/{p}/connect',[IntegrationApiController::class, 'connect']);
+                Route::delete('/{id}',     [IntegrationApiController::class, 'disconnect']);
+            });
+        });
     });
+
+    // Support Manager
+    Route::prefix('manager')->middleware(['support_manager', 'subscribed'])->group(function () {
+        Route::prefix('agents')->group(function () {
+            Route::get('/',                [AgentController::class, 'index']);
+            Route::post('/',               [AgentController::class, 'store']);
+            Route::put('/{id}',            [AgentController::class, 'update']);
+            Route::delete('/{id}',         [AgentController::class, 'destroy']);
+        });
+
+        Route::prefix('automations')->middleware(['ai_configured'])->group(function () {
+            Route::get('/settings',        [AiAutomationSettingController::class, 'show']);
+            Route::post('/settings',       [AiAutomationSettingController::class, 'update']);
+        });
+
+        Route::prefix('customers')->middleware(['ai_configured'])->group(function () {
+            Route::get('/',                [CustomerController::class, 'index']);
+            Route::post('/',               [CustomerController::class, 'store']);
+            Route::get('/{id}',            [CustomerController::class, 'show']);
+            Route::patch('/{id}',          [CustomerController::class, 'update']);
+            Route::delete('/{id}',         [CustomerController::class, 'destroy']);
+        });
+
+        Route::prefix('knowledge-base')->middleware(['ai_configured'])->group(function () {
+            Route::get('/',                [KnowledgeSourceApiController::class, 'index']);
+            Route::post('/',               [KnowledgeSourceApiController::class, 'store']);
+            Route::delete('/{kSource}',    [KnowledgeSourceApiController::class, 'destroy']);
+        });
+    });
+
+    // Support Agent (View Only)
+    Route::prefix('agent')->middleware(['support_agent', 'subscribed'])->group(function () {
+        Route::prefix('customers')->middleware(['ai_configured'])->group(function () {
+            Route::get('/',                [CustomerController::class, 'index']);
+            Route::get('/{id}',            [CustomerController::class, 'show']);
+        });
+    });
+
     // Shared Team Routes (Owner, Manager, Agent)
     Route::prefix('shared')->middleware(['subscribed'])->group(function () {
-        Route::get('/tickets', [TicketController::class, 'index']);
-        Route::get('/tickets/{id}', [TicketController::class, 'show']);
-        
-        // AI Auto Reply Endpoints
-        Route::post('/tickets/{id}/ai-reply', [TicketAiController::class, 'generateSuggestedReply']);
-        Route::post('/tickets/{id}/reply', [TicketAiController::class, 'sendReply']);
-    });
-
-    // Support Agent Routes
-    Route::prefix('agent')->middleware(['support_agent', 'subscribed'])->group(function () {
-        // Agent Customer Access
-        Route::get('/customers', [CustomerController::class, 'index']);
-        Route::get('/customers/{id}', [CustomerController::class, 'show']);
+        Route::prefix('tickets')->middleware(['ai_configured'])->group(function () {
+            Route::get('/',                [TicketController::class, 'index']);
+            Route::get('/{id}',            [TicketController::class, 'show']);
+            
+            Route::post('/{id}/ai-reply',  [TicketAiController::class, 'generateSuggestedReply']);
+            Route::post('/{id}/reply',     [TicketAiController::class, 'sendReply']);
+        });
     });
 });

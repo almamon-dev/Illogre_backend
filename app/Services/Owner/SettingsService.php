@@ -50,18 +50,13 @@ class SettingsService
 
                 $toUpdate[$key] = $value;
             } else {
-                // Encrypt secret_key before saving
-                if ($key === 'secret_key' && !empty($value)) {
-                    $value = Crypt::encryptString($value);
-                }
-
                 // Everything else goes to the pivot table
                 $this->settingsRepository->updateSetting($user, $key, $value);
             }
         }
 
         // Track AI Settings Last Update
-        $aiFields = ['ai_tone', 'ai_agent_name', 'ai_response_language', 'secret_key', 'ai_enable_auto_response', 'ai_require_human_approval', 'ai_provider', 'ai_model'];
+        $aiFields = ['ai_tone', 'ai_agent_name', 'ai_response_language', 'ai_enable_auto_response', 'ai_require_human_approval'];
         $hasAiUpdate = false;
         foreach ($data as $key => $val) {
             if (in_array($key, $aiFields)) {

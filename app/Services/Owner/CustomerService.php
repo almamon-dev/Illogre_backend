@@ -10,14 +10,22 @@ use Illuminate\Support\Facades\DB;
 class CustomerService
 {
     /**
-     * Get all customers for an owner with stats.
+     * Get all customers for an owner with stats and pagination.
      */
-    public function getCustomers($ownerId)
+    public function getCustomers($ownerId, $perPage = 10, $search = null)
     {
-        return Customer::where('owner_id', $ownerId)
+        $query = Customer::where('owner_id', $ownerId)
             ->withCount(['tickets'])
-            ->latest()
-            ->get();
+            ->latest();
+
+        if ($search) {
+            $query->where(function($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                  ->orWhere('email', 'like', "%{$search}%");
+            });
+        }
+
+        return $query->paginate($perPage);
     }
 
     /**

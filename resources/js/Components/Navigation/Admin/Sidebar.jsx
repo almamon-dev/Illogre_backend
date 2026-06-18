@@ -64,6 +64,7 @@ const Sidebar = ({ isCollapsed, toggleCollapse }) => {
                     children: [
                         { label: "General", path: route('admin.settings.website.system'), route: 'admin.settings.website.system' },
                         { label: "Email SMTP", path: route('admin.settings.system.email'), route: 'admin.settings.system.email' },
+                        { label: "AI Configuration", path: route('admin.settings.system.ai'), route: 'admin.settings.system.ai' },
                     ]
                 },
                 {

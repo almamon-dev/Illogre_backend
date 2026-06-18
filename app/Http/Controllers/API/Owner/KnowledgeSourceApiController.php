@@ -26,7 +26,10 @@ class KnowledgeSourceApiController extends Controller
 
     public function index(Request $request): JsonResponse
     {
-        $sources = KnowledgeSource::where('user_id', auth()->id())
+        $ownerId = auth()->user()->getTeamOwnerId();
+        
+        $sources = KnowledgeSource::where('user_id', $ownerId)
+            ->with('chunks')
             ->latest()
             ->get();
 
@@ -39,14 +42,16 @@ class KnowledgeSourceApiController extends Controller
     public function store(UploadKnowledgeRequest $request): JsonResponse
     {
         $user = auth()->user();
+        $ownerId = $user->getTeamOwnerId();
+        $owner = \App\Models\User::find($ownerId);
 
-        // Check if AI is configured
-        if (! $user->isAiConfigured()) {
+        // Check if AI is configured on the owner account
+        if (! $owner->isAiConfigured()) {
             return $this->sendError('AI setup is incomplete. Please configure your AI settings (API key and Provider) in your profile first.', [], 403);
         }
         try {
             $data = $request->validated();
-            $data['user_id'] = $user->id;
+            $data['user_id'] = $ownerId;
 
             if ($request->hasFile('file')) {
                 $file = $request->file('file');
@@ -83,7 +88,9 @@ class KnowledgeSourceApiController extends Controller
 
     public function destroy(KnowledgeSource $knowledgeSource): JsonResponse
     {
-        if ($knowledgeSource->user_id !== auth()->id()) {
+        $ownerId = auth()->user()->getTeamOwnerId();
+        
+        if ($knowledgeSource->user_id !== $ownerId) {
             return $this->sendError('Unauthorized.', [], 403);
         }
 

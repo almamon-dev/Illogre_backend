@@ -36,6 +36,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'subscribed' => CheckSubscription::class,
             'support_manager' => IsSupportManager::class,
             'support_agent' => IsSupportAgent::class,
+            'ai_configured' => \App\Http\Middleware\EnsureAiConfigured::class,
         ]);
 
         $middleware->validateCsrfTokens(except: [

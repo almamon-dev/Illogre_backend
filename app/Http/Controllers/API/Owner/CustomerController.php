@@ -28,14 +28,22 @@ class CustomerController extends Controller
     /**
      * Display a listing of customers.
      */
-    public function index(): JsonResponse
+    public function index(Request $request): JsonResponse
     {
         try {
             $ownerId = Auth::user()->getTeamOwnerId();
-            $customers = $this->customerService->getCustomers($ownerId);
+            
+            $perPage = $request->get('per_page', 10);
+            $search = $request->get('search');
+            
+            $customers = $this->customerService->getCustomers($ownerId, $perPage, $search);
+
+            $customers->setCollection($customers->getCollection()->map(function ($customer) {
+                return new CustomerResource($customer);
+            }));
 
             return $this->sendResponse(
-                CustomerResource::collection($customers),
+                $customers,
                 'Customers fetched successfully.'
             );
 

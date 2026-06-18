@@ -216,8 +216,7 @@ class FetchEmails extends Command
             ->get();
 
         // 4. Analyze using AI
-        $aiData = \App\Services\OpenAIService::analyzeTicket($subject, $body, $ownerId, $customer->name);
-        
+        $aiData = \App\Services\OpenAIService::analyzeTicket($subject, $body, $ownerId, $customer->name, $recentOrders->toArray());
         $category = $aiData['category'] ?? 'Inquiry';
         $confidence = $aiData['confidence'] ?? ($recentOrders && $recentOrders->count() > 0 ? 90 : 40);
         $suggestedReply = $aiData['suggested_reply'] ?? null;
@@ -242,5 +241,9 @@ class FetchEmails extends Command
 
         $this->info("Ticket created: {$ticket->ticket_number} for customer: {$customer->name}");
         Log::info("FetchEmails: Ticket created: {$ticket->ticket_number} for customer: {$customer->name}");
+
+        // 6. Process through Automation Service
+        $automationService = new \App\Services\Agent\TicketAutomationService();
+        $automationService->processIncomingTicket($ticket);
     }
 }

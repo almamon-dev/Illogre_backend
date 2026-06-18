@@ -84,6 +84,17 @@ class TicketDetailResource extends JsonResource
 
         $aiData = $this->ai_analysis ?? [];
 
+        $dbMessages = $this->messages()->oldest()->get()->map(function($msg) {
+            return [
+                'id' => $msg->id,
+                'sender' => $msg->sender_name,
+                'body' => $msg->body,
+                'time' => $msg->created_at->format('h:i A'),
+                'is_ai' => (bool)$msg->is_ai,
+                'is_internal' => (bool)$msg->is_internal,
+            ];
+        })->toArray();
+
         return [
             'id' => $this->id,
             'ticket_id' => $this->ticket_number,
@@ -117,7 +128,7 @@ class TicketDetailResource extends JsonResource
                 'suggested_reply' => $aiData['suggested_reply'] ?? ($this->ai_suggested_reply ?? "Hi " . strtok($this->customer_name ?? 'there', ' ') . ",\n\nThank you for reaching out regarding " . strtolower($this->subject) . ". We have received your inquiry and our team is currently reviewing it. We will get back to you with an update shortly.\n\nBest regards,\nSupport Team")
             ],
             'orders' => $orders,
-            'messages' => []
+            'messages' => $dbMessages
         ];
     }
 }
