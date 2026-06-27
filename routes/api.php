@@ -11,6 +11,7 @@ use App\Http\Controllers\API\Owner\AutomationRuleController;
 use App\Http\Controllers\API\Owner\BillingController;
 use App\Http\Controllers\API\Owner\CustomerController;
 use App\Http\Controllers\API\Owner\DashboardController;
+use App\Http\Controllers\API\Owner\AnalyticsController;
 use App\Http\Controllers\API\Owner\IntegrationApiController;
 use App\Http\Controllers\API\Owner\KnowledgeSourceApiController;
 use App\Http\Controllers\API\Owner\SettingsApiController;
@@ -66,6 +67,7 @@ Route::middleware('auth:sanctum')->group(function () {
     // Owner (Team Subscriber)
     Route::prefix('owner')->middleware(['owner'])->group(function () {
         Route::get('/dashboard/overview',  [DashboardController::class, 'index']);
+        Route::get('/analytics',           [AnalyticsController::class, 'index']);
         Route::post('/shopify/install',    [IntegrationApiController::class, 'shopifyInstall'])->middleware(['subscribed']);
         
         Route::prefix('billing')->group(function () {

@@ -71,7 +71,25 @@ class CustomerService
             $data['status'] = $this->calculateStatus($data['total_orders'] ?? 0, $data['total_spent'] ?? 0);
         }
 
-        return Customer::create($data);
+        $customer = Customer::create($data);
+
+        // Auto-create a default ticket for the manually created customer
+        Ticket::create([
+            'ticket_number' => 'TCK-' . strtoupper(substr(uniqid(), -6)),
+            'customer_name' => $customer->name,
+            'customer_email' => $customer->email,
+            'subject' => 'Welcome ' . $customer->name,
+            'category' => 'General',
+            'source' => 'Manual',
+            'status' => 'Pending',
+            'priority' => 'Low',
+            'assigned' => 'Unassigned',
+            'customer_id' => $customer->id,
+            'owner_id' => $ownerId,
+            'body' => 'Auto-generated ticket for manually created customer.',
+        ]);
+
+        return $customer;
     }
 
     /**

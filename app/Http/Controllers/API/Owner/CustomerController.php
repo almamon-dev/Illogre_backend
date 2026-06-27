@@ -70,6 +70,8 @@ class CustomerController extends Controller
             ],
             'country' => 'nullable|string|max:255',
             'status' => 'nullable|string|in:New,Returning,VIP',
+            'total_orders' => 'nullable|integer|min:0',
+            'total_spent' => 'nullable|numeric|min:0',
         ]);
 
         try {
@@ -122,6 +124,8 @@ class CustomerController extends Controller
             ],
             'country' => 'nullable|string|max:255',
             'status' => 'nullable|string|in:New,Returning,VIP',
+            'total_orders' => 'nullable|integer|min:0',
+            'total_spent' => 'nullable|numeric|min:0',
         ]);
 
         try {
