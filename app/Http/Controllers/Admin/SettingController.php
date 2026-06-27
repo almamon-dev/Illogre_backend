@@ -14,10 +14,12 @@ class SettingController extends Controller
      */
     public function aiSettings()
     {
+        $dbSettings = Setting::whereIn('key', ['ai_provider', 'openai_api_key', 'ai_model'])->pluck('value', 'key');
+
         $settings = [
-            'ai_provider' => env('AI_PROVIDER', 'openai'),
-            'openai_api_key' => env('OPENAI_API_KEY', ''),
-            'ai_model' => env('AI_MODEL', 'gpt-4o'),
+            'ai_provider' => $dbSettings['ai_provider'] ?? env('AI_PROVIDER', 'openai'),
+            'openai_api_key' => $dbSettings['openai_api_key'] ?? env('OPENAI_API_KEY', ''),
+            'ai_model' => $dbSettings['ai_model'] ?? env('AI_MODEL', 'gpt-4o'),
         ];
 
         return Inertia::render('Admin/Settings/System/Ai', [
@@ -35,6 +37,20 @@ class SettingController extends Controller
             'openai_api_key' => 'nullable|string',
             'ai_model' => 'nullable|string',
         ]);
+
+        if (!empty($data['openai_api_key'])) {
+            $response = \Illuminate\Support\Facades\Http::withToken($data['openai_api_key'])
+                ->get('https://api.openai.com/v1/models');
+
+            if ($response->failed()) {
+                return back()->withErrors(['openai_api_key' => 'Invalid OpenAI API Key. Please provide a valid key.']);
+            }
+        }
+
+        // Save to database for real-time access
+        Setting::updateOrCreate(['key' => 'ai_provider'], ['value' => $data['ai_provider']]);
+        Setting::updateOrCreate(['key' => 'openai_api_key'], ['value' => $data['openai_api_key'] ?? '']);
+        Setting::updateOrCreate(['key' => 'ai_model'], ['value' => $data['ai_model'] ?? 'gpt-4o']);
 
         $envData = [
             'AI_PROVIDER' => $data['ai_provider'],

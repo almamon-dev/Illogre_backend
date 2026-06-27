@@ -178,7 +178,10 @@ class User extends Authenticatable
      */
     public function isAiConfigured(): bool
     {
-        return !empty(env('OPENAI_API_KEY')) && !empty(env('AI_PROVIDER'));
+        $provider = \App\Models\Setting::where('key', 'ai_provider')->value('value') ?: env('AI_PROVIDER');
+        $apiKey = \App\Models\Setting::where('key', 'openai_api_key')->value('value') ?: env('OPENAI_API_KEY');
+
+        return !empty($apiKey) && !empty($provider);
     }
 
 }

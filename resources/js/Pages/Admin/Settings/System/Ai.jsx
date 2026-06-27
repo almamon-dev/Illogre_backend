@@ -89,6 +89,9 @@ export default function AiSettings({ settings }) {
                                             </button>
                                         </div>
                                         <p className="text-[11px] text-slate-400">This key automatically authenticates AI requests for all active business owners.</p>
+                                        {errors.openai_api_key && (
+                                            <p className="text-[11px] text-red-500 font-semibold">{errors.openai_api_key}</p>
+                                        )}
                                     </div>
                                 </div>
                             </div>
